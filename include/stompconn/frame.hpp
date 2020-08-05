@@ -1,7 +1,7 @@
 #pragma once
 
-#include "stomptalk/frame.hpp"
 #include "stompconn/packet.hpp"
+#include "stomptalk/frame.hpp"
 #include "btpro/tcp/bev.hpp"
 
 namespace stompconn {

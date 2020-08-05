@@ -36,7 +36,8 @@ void stomplay::on_method(stomptalk::parser_hook& hook,
     hook.next_frame();
 }
 
-void stomplay::on_hdr_key(stomptalk::parser_hook& hook, std::string_view text) noexcept
+void stomplay::on_hdr_key(stomptalk::parser_hook& hook,
+                          std::string_view text) noexcept
 {
     try
     {
@@ -56,7 +57,8 @@ void stomplay::on_hdr_key(stomptalk::parser_hook& hook, std::string_view text) n
     hook.next_frame();
 }
 
-void stomplay::on_hdr_val(stomptalk::parser_hook& hook, std::string_view val) noexcept
+void stomplay::on_hdr_val(stomptalk::parser_hook& hook,
+                          std::string_view val) noexcept
 {
     auto num_id = header_.num_id();
     if (num_id != stomptalk::header::num_id::none)
@@ -78,7 +80,8 @@ void stomplay::on_hdr_val(stomptalk::parser_hook& hook, std::string_view val) no
         break;
     }
     case stomptalk::header::tag::content_type::num:
-        content_type_ = stomptalk::header::tag::content_type::eval_content_type(val);
+        content_type_ =
+                stomptalk::header::tag::content_type::eval_content_type(val);
         break;
 
     default: ;
@@ -158,7 +161,7 @@ void stomplay::exec_on_logon() noexcept
 {
     try
     {
-        logon_ = true;
+        logon_ = 1;
         on_logon_fn_(packet(header_store_, method_, std::move(recv_)));
     }
     catch (const std::exception& e)

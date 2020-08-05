@@ -55,6 +55,11 @@ public:
         return data_;
     }
 
+    btpro::buffer_ref payload() const noexcept
+    {
+        return data_;
+    }
+
     std::string dump() const noexcept
     {
         std::string rc;

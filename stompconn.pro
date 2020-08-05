@@ -20,6 +20,7 @@ HEADERS += \
     include/stompconn/header_store.hpp \
 
 INCLUDEPATH += include \
+    ../stomptalk/include \
     ..
 
 CONFIG(release, debug|release) {
@@ -28,10 +29,3 @@ CONFIG(release, debug|release) {
 
 QMAKE_CXXFLAGS_RELEASE += "-O3 -march=native"
 QMAKE_LFLAGS_RELEASE += "-O3 -march=native"
-
-#QMAKE_CXXFLAGS_RELEASE += "-O3 -march=native -fprofile-generate"
-#QMAKE_LFLAGS_RELEASE += "-O3 -march=native -fprofile-generate"
-
-#QMAKE_CXXFLAGS_RELEASE += "-O3 -march=native -fprofile-use"
-#QMAKE_LFLAGS_RELEASE += "-O3 -march=native -fprofile-use"
-

@@ -1,8 +1,6 @@
 #pragma once
 
 #include "stomptalk/header.hpp"
-//#include "btdef/allocator/wrapper.hpp"
-//#include "btdef/hash.hpp"
 
 #include <array>
 #include <limits>
@@ -22,7 +20,8 @@ class header_store
     typedef std::size_t index_type;
     typedef std::size_t hash_type;
     typedef std::unordered_map<hash_type, index_type> map_index_type;
-    typedef std::array<index_type, stomptalk::header::num_id::count> known_index_type;
+    typedef std::array<index_type, stomptalk::header::num_id::count>
+        known_index_type;
 
     static constexpr auto peeled = std::numeric_limits<index_type>::max();
     storage_type store_{};
@@ -169,6 +168,9 @@ public:
         return rc;
     }
 };
+
+//#include "btdef/allocator/wrapper.hpp"
+//#include "btdef/hash.hpp"
 
 //class header_store
 //{
