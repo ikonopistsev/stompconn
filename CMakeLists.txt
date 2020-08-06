@@ -24,6 +24,7 @@ set(pub_header
 )
 
 add_library(stompconn STATIC ${source})
+include_directories(.. ../stomptalk/include)
 
 target_include_directories(stompconn PUBLIC include)
 
