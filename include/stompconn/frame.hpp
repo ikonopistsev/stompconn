@@ -73,7 +73,7 @@ public:
 
     const std::string& id() const noexcept;
 
-    std::string&& subscribe::id() noexcept;
+    std::string&& id() noexcept;
 };
 
 class send final
