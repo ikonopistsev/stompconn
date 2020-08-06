@@ -30,6 +30,11 @@ public:
     {
         on_message(id, std::move(p));
     }
+
+    void clear()
+    {
+        storage_.clear();
+    }
 };
 
 } // namespace stomptalk

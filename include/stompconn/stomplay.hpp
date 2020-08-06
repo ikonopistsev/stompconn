@@ -55,6 +55,7 @@ private:
     void exec_on_receipt(std::string_view id) noexcept;
     void exec_on_message(std::string_view id) noexcept;
 
+    void clear();
 public:
     stomplay() = default;
 

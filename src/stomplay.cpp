@@ -5,12 +5,7 @@ using namespace stompconn;
 
 void stomplay::on_frame(stomptalk::parser_hook&) noexcept
 {
-    method_.set(stomptalk::method::num_id::none);
-    header_.set(stomptalk::header::num_id::none);
-    current_header_.clear();
-    content_type_ = content_type_id::none;
-    header_store_.clear();
-    recv_.reset(btpro::buffer());
+    clear();
 }
 
 void stomplay::on_method(stomptalk::parser_hook& hook,
@@ -206,6 +201,17 @@ void stomplay::exec_on_message(std::string_view id) noexcept
     {
         std::cerr << "exec_on_message" << std::endl;
     }
+}
+
+void stomplay::clear()
+{
+    method_.set(stomptalk::method::num_id::none);
+    header_.set(stomptalk::header::num_id::none);
+    current_header_.clear();
+    content_type_ = content_type_id::none;
+    header_store_.clear();
+    recv_.reset(btpro::buffer());
+    handler_.clear();
 }
 
 void stomplay::add_handler(const std::string& id, fun_type fn)

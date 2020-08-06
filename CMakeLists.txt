@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(stompconn VERSION 0.0.1 DESCRIPTION "stomp connection helper")
+project(stompconn VERSION 1.0.0 DESCRIPTION "stomp connection helper")
 
 option(STOMPCONN_DEBUG "show debug" OFF)
 
@@ -24,7 +24,6 @@ set(pub_header
 )
 
 add_library(stompconn STATIC ${source})
-include_directories(.. ../stomptalk/include)
 
 target_include_directories(stompconn PUBLIC include)
 
