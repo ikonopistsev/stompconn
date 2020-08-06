@@ -69,10 +69,7 @@ public:
         on_logon_fn_ = std::move(fn);
     }
 
-    void logout() noexcept
-    {
-        logon_ = 0;
-    }
+    void logout();
 
     void add_handler(const std::string& id, fun_type fn);
 };

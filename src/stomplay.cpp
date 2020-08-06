@@ -211,6 +211,11 @@ void stomplay::clear()
     content_type_ = content_type_id::none;
     header_store_.clear();
     recv_.reset(btpro::buffer());
+}
+
+void stomplay::logout()
+{
+    logon_ = 0;
     handler_.clear();
 }
 
