@@ -72,6 +72,8 @@ public:
     const fn_type& fn() const noexcept;
 
     const std::string& id() const noexcept;
+
+    std::string&& subscribe::id() noexcept;
 };
 
 class send final

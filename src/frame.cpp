@@ -117,6 +117,11 @@ const std::string& subscribe::id() const noexcept
     return id_;
 }
 
+std::string&& subscribe::id() noexcept
+{
+    return std::move(id_);
+}
+
 send::send(std::string_view destination, std::size_t size_reserve)
 {
     data_.expand(size_reserve);

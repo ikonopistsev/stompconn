@@ -163,7 +163,7 @@ void connection::subscribe(stompconn::subscribe frame, stomplay::fun_type fn)
         [this , id = std::move(subs_id), frame_fn = frame.fn(),
          receipt_fn = std::move(fn)] (packet p) {
             // добавляем id подписки и ее обработчик
-            stomplay_.add_handler(id, std::move(frame_fn));
+            stomplay_.add_handler(id, frame_fn);
             // вызываем клиентский обработчки подписки
             exec_subscribe(receipt_fn, std::move(p));
     });
