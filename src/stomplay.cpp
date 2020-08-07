@@ -107,25 +107,26 @@ void stomplay::on_frame_end(stomptalk::parser_hook&) noexcept
 {
     switch (method_.num_id())
     {
-    case stomptalk::method::num_id::error:
+    case stomptalk::method::tag::error::num:
         exec_on_error();
         break;
 
-    case stomptalk::method::num_id::receipt: {
+    case stomptalk::method::tag::receipt::num:
+    case stomptalk::method::tag::unsubscribe::num: {
         auto id = header_store_.get(stomptalk::header::receipt_id());
         if (!id.empty())
             exec_on_receipt(id);
         break;
     }
 
-    case stomptalk::method::num_id::message: {
+    case stomptalk::method::tag::message::num: {
         auto subs = header_store_.get(stomptalk::header::subscription());
         if (!subs.empty())
             exec_on_message(subs);
         break;
     }
 
-    case stomptalk::method::num_id::connected:
+    case stomptalk::method::tag::connected::num:
         exec_on_logon();
         break;
     }
@@ -222,4 +223,9 @@ void stomplay::logout()
 void stomplay::add_handler(const std::string& id, fun_type fn)
 {
     handler_.create(id, std::move(fn));
+}
+
+void stomplay::remove_handler(const std::string& id)
+{
+    handler_.remove(id);
 }

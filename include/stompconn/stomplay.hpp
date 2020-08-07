@@ -73,6 +73,8 @@ public:
     void logout();
 
     void add_handler(const std::string& id, fun_type fn);
+
+    void remove_handler(const std::string& id);
 };
 
 } // namespace stompconn

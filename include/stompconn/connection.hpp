@@ -46,6 +46,9 @@ private:
 
     void exec_subscribe(const stomplay::fun_type& fn, packet p);
 
+    void exec_unsubscribe(const stomplay::fun_type& fn,
+                          const std::string& id, packet p);
+
 public:
     connection(btpro::queue_ref queue,
                on_event_type evfn, on_connect_type connfn) noexcept
@@ -58,6 +61,17 @@ public:
     }
 
     void connect(const btpro::ip::addr& addr);
+
+    template<class Rep, class Period>
+    void connect(const btpro::ip::addr& addr,
+                 std::chrono::duration<Rep, Period> timeout)
+    {
+        connect(addr);
+
+        auto tv = btpro::make_timeval(timeout);
+        bev_.set_timeout(nullptr, &tv);
+    }
+
     void connect(btpro::dns_ref dns, const std::string& host, int port);
 
     template<class Rep, class Period>
@@ -74,7 +88,7 @@ public:
 
     void subscribe(stompconn::subscribe frame, stomplay::fun_type fn);
 
-    void unsubscribe(const std::string& sub_id, stomplay::fun_type fn);
+    void unsubscribe(std::string_view id, stomplay::fun_type fn);
 
     void send(stompconn::send frame, stomplay::fun_type fn);
 

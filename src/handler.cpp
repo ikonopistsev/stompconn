@@ -6,15 +6,25 @@ void handler::exec(iterator i, packet p) noexcept
 {
     try
     {
-        std::get<1>(*i)(std::move(p));
+        auto& fn = std::get<1>(*i);
+        assert(fn);
+
+        fn(std::move(p));
     }
     catch (...)
     {   }
 }
 
-void handler::create(const std::string& receipt_id, fn_type fn)
+void handler::create(const std::string& id, fn_type fn)
 {
-    storage_[receipt_id] = std::move(fn);
+    assert(fn);
+
+    storage_[id] = std::move(fn);
+}
+
+void handler::remove(const std::string& id)
+{
+    storage_.erase(id);
 }
 
 void handler::on_recepit(const std::string& receipt_id, packet p) noexcept

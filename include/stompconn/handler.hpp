@@ -20,7 +20,9 @@ private:
     void exec(iterator i, packet p) noexcept;
 
 public:
-    void create(const std::string& receipt_id, fn_type fn);
+    void create(const std::string& id, fn_type fn);
+
+    void remove(const std::string& id);
 
     void on_recepit(const std::string& id, packet p) noexcept;
 

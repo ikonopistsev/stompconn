@@ -69,6 +69,7 @@ void connection::exec_subscribe(const stomplay::fun_type& fn, packet p)
 {
     try
     {
+        assert(fn);
         fn(std::move(p));
     }
     catch (const std::exception& e)
@@ -78,6 +79,29 @@ void connection::exec_subscribe(const stomplay::fun_type& fn, packet p)
     catch (...)
     {
         std::cerr << "exec_subscribe" << std::endl;
+    }
+}
+
+void connection::exec_unsubscribe(const stomplay::fun_type& fn,
+                                  const std::string& id, packet p)
+{
+    try
+    {
+        assert(fn);
+        assert(!id.empty());
+
+        fn(std::move(p));
+
+        // удаляем обработчик подписки
+        stomplay_.remove_handler(id);
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << e.what() << std::endl;
+    }
+    catch (...)
+    {
+        std::cerr << "exec_unsubscribe" << std::endl;
     }
 }
 
@@ -178,7 +202,7 @@ void connection::subscribe(stompconn::subscribe frame, stomplay::fun_type fn)
     frame.write(bev_);
 }
 
-void connection::unsubscribe(const std::string& sub_id, stomplay::fun_type fn)
+void connection::unsubscribe(std::string_view id, stomplay::fun_type fn)
 {
     assert(fn);
 
@@ -186,10 +210,14 @@ void connection::unsubscribe(const std::string& sub_id, stomplay::fun_type fn)
 
     frame frame;
     frame.push(stomptalk::method::tag::unsubscribe::name());
-    frame.push(stomptalk::header::subscription(sub_id));
+    frame.push(stomptalk::header::id(id));
     frame.push(stomptalk::header::receipt(receipt_id));
 
-    stomplay_.add_handler(receipt_id, std::move(fn));
+    stomplay_.add_handler(receipt_id,
+        [this , id = std::string(id), receipt_fn = std::move(fn)] (packet p) {
+          // вызываем клиентский обработчик подписки
+          exec_unsubscribe(receipt_fn, id, std::move(p));
+    });
 
     frame.write(bev_);
 }
