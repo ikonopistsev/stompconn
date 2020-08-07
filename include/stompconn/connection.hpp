@@ -57,6 +57,7 @@ public:
         assert(connfn);
     }
 
+    void connect(const btpro::ip::addr& addr);
     void connect(btpro::dns_ref dns, const std::string& host, int port);
 
     template<class Rep, class Period>

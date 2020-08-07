@@ -124,6 +124,13 @@ std::string create_receipt_id() noexcept
     return create_id(tail);
 }
 
+void connection::connect(const btpro::ip::addr& addr)
+{
+    create();
+
+    bev_.connect(addr);
+}
+
 void connection::connect(btpro::dns_ref dns, const std::string& host, int port)
 {
     create();
@@ -164,7 +171,7 @@ void connection::subscribe(stompconn::subscribe frame, stomplay::fun_type fn)
          receipt_fn = std::move(fn)] (packet p) {
             // добавляем id подписки и ее обработчик
             stomplay_.add_handler(id, frame_fn);
-            // вызываем клиентский обработчки подписки
+            // вызываем клиентский обработчик подписки
             exec_subscribe(receipt_fn, std::move(p));
     });
 
