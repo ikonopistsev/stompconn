@@ -9,17 +9,26 @@ class packet
 {
 protected:
     const header_store& header_;
+    std::string_view session_{};
     stomptalk::method::generic method_{};
-    btpro::buffer data_{};
+    btpro::buffer payload_{};
 
 public:
     packet(packet&&) = default;
+
+    packet(const header_store& header, std::string_view session,
+        stomptalk::method::generic method, btpro::buffer data)
+        : header_(header)
+        , session_(session)
+        , method_(method)
+        , payload_(std::move(data))
+    {   }
 
     packet(const header_store& header,
         stomptalk::method::generic method, btpro::buffer data)
         : header_(header)
         , method_(method)
-        , data_(std::move(data))
+        , payload_(std::move(data))
     {   }
 
     virtual ~packet() = default;
@@ -45,30 +54,47 @@ public:
         return header_.get(key);
     }
 
+    std::string_view session() const noexcept
+    {
+        return session_;
+    }
+
     stomptalk::method::generic method() const noexcept
     {
         return method_;
     }
 
-    btpro::buffer_ref data() const noexcept
-    {
-        return data_;
-    }
-
     btpro::buffer_ref payload() const noexcept
     {
-        return data_;
+        return payload_;
     }
 
-    std::string dump() const noexcept
+    btpro::buffer_ref data() const noexcept
+    {
+        return payload();
+    }
+
+    std::size_t size() const noexcept
+    {
+        return payload_.size();
+    }
+
+    std::size_t empty() const noexcept
+    {
+        return payload_.empty();
+    }
+
+    std::string dump() const
     {
         std::string rc;
+        rc.resize(320);
+
         rc += method_.str();
         rc += '\n';
         rc += header_.dump();
         rc += '\n';
-        if (!data_.empty())
-            rc += data_.str();
+        if (!payload_.empty())
+            rc += payload_.str();
         return rc;
     }
 };

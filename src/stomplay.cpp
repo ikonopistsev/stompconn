@@ -3,9 +3,22 @@
 
 using namespace stompconn;
 
-void stomplay::on_frame(stomptalk::parser_hook&) noexcept
+void stomplay::on_frame(stomptalk::parser_hook& hook) noexcept
 {
-    clear();
+    try
+    {
+        clear();
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "stomplay frame: " << e.what() << std::endl;
+    }
+    catch (...)
+    {
+        std::cerr << "stomplay frame" << std::endl;
+    }
+
+    hook.next_frame();
 }
 
 void stomplay::on_method(stomptalk::parser_hook& hook,
@@ -13,6 +26,9 @@ void stomplay::on_method(stomptalk::parser_hook& hook,
 {
     try
     {
+#ifndef NDEBUG
+        dump_ = method;
+#endif
         method_.set(stomptalk::method::eval_stom_method(method));
         if (method_.valid())
             return;
@@ -21,7 +37,8 @@ void stomplay::on_method(stomptalk::parser_hook& hook,
     }
     catch (const std::exception& e)
     {
-        std::cerr << "stomplay method: " << e.what() << std::endl;
+        std::cerr << "stomplay method: " << method << ' '
+                  << e.what() << std::endl;
     }
     catch (...)
     {
@@ -32,62 +49,93 @@ void stomplay::on_method(stomptalk::parser_hook& hook,
 }
 
 void stomplay::on_hdr_key(stomptalk::parser_hook& hook,
-                          std::string_view text) noexcept
+    std::string_view text) noexcept
 {
     try
     {
+#ifndef NDEBUG
+        dump_ += '\n';
+        dump_ += text;
+#endif
         current_header_ = text;
         header_.eval(text);
         return;
     }
     catch (const std::exception& e)
     {
-        std::cerr << "stomplay method: " << e.what() << std::endl;
+        std::cerr << "stomplay header: " << text
+                  << ' ' << e.what() << std::endl;
     }
     catch (...)
     {
-        std::cerr << "stomplay header: " << text << " error" << std::endl;
+        std::cerr << "stomplay header" << std::endl;
     }
 
     hook.next_frame();
 }
 
 void stomplay::on_hdr_val(stomptalk::parser_hook& hook,
-                          std::string_view val) noexcept
-{
-    auto num_id = header_.num_id();
-    if (num_id != stomptalk::header::num_id::none)
-        header_store_.set(num_id, current_header_, val);
-    else
-        header_store_.set(current_header_, val);
-
-    switch (num_id)
-    {
-    case stomptalk::header::tag::content_length::num: {
-        auto content_len = stomptalk::antoull(val);
-        if (content_len > 0ll)
-            hook.set(static_cast<std::uint64_t>(content_len));
-        else
-        {
-            std::cerr << "stomplay content_length: invalid size" << std::endl;
-            hook.next_frame();
-        }
-        break;
-    }
-    case stomptalk::header::tag::content_type::num:
-        content_type_ =
-                stomptalk::header::tag::content_type::eval_content_type(val);
-        break;
-
-    default: ;
-    }
-}
-
-void stomplay::on_body(stomptalk::parser_hook& hook,
-                     const void* data, std::size_t size) noexcept
+    std::string_view val) noexcept
 {
     try
     {
+#ifndef NDEBUG
+        dump_ += ':';
+        dump_ += val;
+#endif
+        auto num_id = header_.num_id();
+        if (num_id != stomptalk::header::num_id::none)
+            header_store_.set(num_id, current_header_, val);
+        else
+            header_store_.set(current_header_, val);
+
+        switch (num_id)
+        {
+        case stomptalk::header::tag::content_length::num: {
+            auto content_len = stomptalk::antoull(val);
+            if (content_len > 0ll)
+                hook.set(static_cast<std::uint64_t>(content_len));
+            else
+            {
+                std::cerr << "stomplay header val: content_length: " << val
+                          << " size? = " << content_len << std::endl;
+                hook.next_frame();
+                return;
+            }
+            break;
+        }
+        case stomptalk::header::tag::content_type::num:
+            content_type_ =
+                stomptalk::header::tag::content_type::eval_content_type(val);
+            break;
+
+        default: ;
+        }
+
+        return;
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "stomplay header val: " << val
+                  << ' ' << e.what() << std::endl;
+    }
+    catch (...)
+    {
+        std::cerr << "stomplay header val" << std::endl;
+    }
+
+    hook.next_frame();
+}
+
+void stomplay::on_body(stomptalk::parser_hook& hook,
+    const void* data, std::size_t size) noexcept
+{
+    try
+    {
+#ifndef NDEBUG
+        dump_ += '\n';
+        dump_ += std::string(reinterpret_cast<const char*>(data), size);
+#endif
         recv_.append(data, size);
         return;
     }
@@ -97,7 +145,7 @@ void stomplay::on_body(stomptalk::parser_hook& hook,
     }
     catch (...)
     {
-        std::cerr << "on_body" << std::endl;
+        std::cerr << "stomplay body" << std::endl;
     }
 
     hook.next_frame();
@@ -105,6 +153,10 @@ void stomplay::on_body(stomptalk::parser_hook& hook,
 
 void stomplay::on_frame_end(stomptalk::parser_hook&) noexcept
 {
+#ifndef NDEBUG
+    std::cout << "<< " <<  dump_ << std::endl << std::endl;
+#endif
+
     switch (method_.num_id())
     {
     case stomptalk::method::tag::error::num:
@@ -136,37 +188,48 @@ void stomplay::exec_on_error() noexcept
 {
     try
     {
-        if (!logon_)
-            on_logon_fn_(packet(header_store_, method_, std::move(recv_)));
-        else
+        if (session_.empty())
         {
-            auto subs = header_store_.get(stomptalk::header::subscription());
-            if (!subs.empty())
-                exec_on_receipt(subs);
-
-            auto id = header_store_.get(stomptalk::header::receipt_id());
-            if (!id.empty())
-                exec_on_receipt(id);
+            on_logon_fn_(packet(header_store_, method_, std::move(recv_)));
+            return;
         }
+
+        auto subs = header_store_.get(stomptalk::header::subscription());
+        if (!subs.empty())
+            exec_on_receipt(subs);
+
+        auto id = header_store_.get(stomptalk::header::receipt_id());
+        if (!id.empty())
+            exec_on_receipt(id);
+
+        if (on_error_fn_)
+            on_error_fn_(packet(header_store_, session_,
+                                method_, std::move(recv_)));
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "stomplay error: " << e.what() << std::endl;
     }
     catch (...)
-    {   }
+    {
+        std::cerr << "stomplay error" << std::endl;
+    }
 }
 
 void stomplay::exec_on_logon() noexcept
 {
     try
     {
-        logon_ = 1;
-        on_logon_fn_(packet(header_store_, method_, std::move(recv_)));
+        session_ = header_store_.get(stomptalk::header::session());
+        on_logon_fn_(packet(header_store_, session_, method_, std::move(recv_)));
     }
     catch (const std::exception& e)
     {
-        std::cerr << e.what() << std::endl;
+        std::cerr << "stomplay logon: " << e.what() << std::endl;
     }
     catch (...)
     {
-        std::cerr << "exec_on_logon" << std::endl;
+        std::cerr << "stomplay logon" << std::endl;
     }
 }
 
@@ -175,15 +238,15 @@ void stomplay::exec_on_receipt(std::string_view id) noexcept
     try
     {
         handler_.on_recepit(std::string(id),
-            packet(header_store_, method_, std::move(recv_)));
+            packet(header_store_, session_, method_, std::move(recv_)));
     }
     catch (const std::exception& e)
     {
-        std::cerr << e.what() << std::endl;
+        std::cerr << "stomplay receipt: " << e.what() << std::endl;
     }
     catch (...)
     {
-        std::cerr << "exec_on_receipt" << std::endl;
+        std::cerr << "stomplay receipt" << std::endl;
     }
 }
 
@@ -192,15 +255,15 @@ void stomplay::exec_on_message(std::string_view id) noexcept
     try
     {
         handler_.on_message(std::string(id),
-            packet(header_store_, method_, std::move(recv_)));
+            packet(header_store_, session_, method_, std::move(recv_)));
     }
     catch (const std::exception& e)
     {
-        std::cerr << e.what() << std::endl;
+        std::cerr << "stomplay message: " << e.what() << std::endl;
     }
     catch (...)
     {
-        std::cerr << "exec_on_message" << std::endl;
+        std::cerr << "stomplay message" << std::endl;
     }
 }
 
@@ -216,7 +279,7 @@ void stomplay::clear()
 
 void stomplay::logout()
 {
-    logon_ = 0;
+    session_.clear();
     handler_.clear();
 }
 

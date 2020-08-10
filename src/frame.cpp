@@ -24,7 +24,9 @@ void frame::reserve(std::size_t len)
 
 void frame::write(btpro::tcp::bev& output)
 {
+#ifndef NDEBUG
     std::cout << data_.str() << std::endl << std::endl;
+#endif
     append_ref(stomptalk::make_ref("\n\0"));
     output.write(std::move(data_));
 }
@@ -156,7 +158,10 @@ void send::write(bt::bev& output)
     else
         append_ref(stomptalk::make_ref("\n\0"));
 
-    //std::cout << data_.str() << std::endl << std::endl;
+#ifndef NDEBUG
+    std::cout << data_.str() << std::endl << std::endl;
+#endif
+
     output.write(std::move(data_));
 }
 

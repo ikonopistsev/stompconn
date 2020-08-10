@@ -30,8 +30,13 @@ private:
 
     btpro::buffer recv_{};
     fun_type on_logon_fn_{};
+    fun_type on_error_fn_{};
     handler handler_{};
-    std::size_t logon_{false};
+    std::string session_{false};
+
+#ifndef NDEBUG
+    std::string dump_{};
+#endif
 
     virtual void on_frame(stomptalk::parser_hook&) noexcept override;
 
@@ -57,6 +62,11 @@ private:
 
     void clear();
 
+    const std::string& session() const noexcept
+    {
+        return session_;
+    }
+
 public:
     stomplay() = default;
 
@@ -68,6 +78,11 @@ public:
     void on_logon(fun_type fn)
     {
         on_logon_fn_ = std::move(fn);
+    }
+
+    void on_error(fun_type fn)
+    {
+        on_error_fn_ = std::move(fn);
     }
 
     void logout();

@@ -150,6 +150,28 @@ public:
         return size() == 0;
     }
 
+    std::string dump_known() const
+    {
+        std::string rc;
+        rc.reserve(320);
+
+        for (auto& i: header_index_)
+        {
+            if (i != peeled)
+            {
+                if (!rc.empty())
+                    rc += '\n';
+
+                auto& h = store_[i];
+                rc += std::get<0>(h);
+                rc += ':';
+                rc += std::get<1>(h);
+            }
+        }
+
+        return rc;
+    }
+
     std::string dump() const
     {
         std::string rc;

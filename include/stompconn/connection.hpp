@@ -94,7 +94,6 @@ public:
 
     void send(stompconn::send frame)
     {
-        //std::cout << std::endl << frame.str() << std::endl;
         frame.write(bev_);
     }
 };
