@@ -269,10 +269,10 @@ void stomplay::exec_on_message(std::string_view id) noexcept
 
 void stomplay::clear()
 {
-    method_.set(stomptalk::method::num_id::none);
-    header_.set(stomptalk::header::num_id::none);
-    current_header_.clear();
+    method_.reset();
+    header_.reset();
     content_type_ = content_type_id::none;
+    current_header_.clear();
     header_store_.clear();
     recv_.reset(btpro::buffer());
 }
