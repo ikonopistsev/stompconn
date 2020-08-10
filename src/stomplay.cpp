@@ -8,6 +8,7 @@ void stomplay::on_frame(stomptalk::parser_hook& hook) noexcept
     try
     {
         clear();
+        return;
     }
     catch (const std::exception& e)
     {
@@ -30,10 +31,11 @@ void stomplay::on_method(stomptalk::parser_hook& hook,
         dump_ = method;
 #endif
         method_.set(stomptalk::method::eval_stom_method(method));
-        if (method_.valid())
-            return;
 
-        std::cerr << "stomplay method: " << method << " unknown" << std::endl;
+        if (!method_.valid())
+            std::cerr << "stomplay method: " << method << " unknown" << std::endl;
+
+        return;
     }
     catch (const std::exception& e)
     {
