@@ -43,6 +43,11 @@ public:
         return !error();
     }
 
+    bool must_ack() const noexcept
+    {
+        return !get(stomptalk::header::ack()).empty();
+    }
+
     template<class T>
     std::string_view get(stomptalk::header::basic<T>) const noexcept
     {
@@ -87,7 +92,7 @@ public:
     std::string dump() const
     {
         std::string rc;
-        rc.resize(320);
+        rc.reserve(320);
 
         rc += method_.str();
         rc += '\n';

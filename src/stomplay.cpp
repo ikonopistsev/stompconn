@@ -165,8 +165,7 @@ void stomplay::on_frame_end(stomptalk::parser_hook&) noexcept
         exec_on_error();
         break;
 
-    case stomptalk::method::tag::receipt::num:
-    case stomptalk::method::tag::unsubscribe::num: {
+    case stomptalk::method::tag::receipt::num: {
         auto id = header_store_.get(stomptalk::header::receipt_id());
         if (!id.empty())
             exec_on_receipt(id);

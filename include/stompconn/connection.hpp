@@ -84,11 +84,65 @@ public:
         bev_.set_timeout(nullptr, &tv);
     }
 
+    // stomp CONNECT
     void logon(stompconn::logon frame, stomplay::fun_type fn);
 
     void subscribe(stompconn::subscribe frame, stomplay::fun_type fn);
 
     void unsubscribe(std::string_view id, stomplay::fun_type fn);
+
+    // stomp DISCONNECT
+    void logout(stomplay::fun_type fn);
+
+    void ack(stompconn::ack frame, stomplay::fun_type fn);
+
+    void ack(stompconn::ack frame)
+    {
+        frame.write(bev_);
+    }
+
+    void ack(const packet& p, stomplay::fun_type fn)
+    {
+        assert(fn);
+
+        ack(stompconn::ack(p), std::move(fn));
+    }
+
+    void ack(const packet& p)
+    {
+        ack(stompconn::ack(p));
+    }
+
+    void nack(stompconn::nack frame, stomplay::fun_type fn);
+
+    void nack(stompconn::nack frame)
+    {
+        frame.write(bev_);
+    }
+
+    void nack(const packet& p, stomplay::fun_type fn)
+    {
+        assert(fn);
+
+        nack(stompconn::nack(p), std::move(fn));
+    }
+
+    void nack(const packet& p)
+    {
+        nack(stompconn::nack(p));
+    }
+
+    void send(stompconn::logon frame, stomplay::fun_type fn);
+
+    void send(stompconn::subscribe frame, stomplay::fun_type fn);
+
+    void send(stompconn::ack frame, stomplay::fun_type fn);
+
+    void send(stompconn::ack frame);
+
+    void send(stompconn::nack frame, stomplay::fun_type fn);
+
+    void send(stompconn::nack frame);
 
     void send(stompconn::send frame, stomplay::fun_type fn);
 
@@ -96,6 +150,7 @@ public:
     {
         frame.write(bev_);
     }
+
 };
 
 } // namespace stomptalk

@@ -222,6 +222,35 @@ void connection::unsubscribe(std::string_view id, stomplay::fun_type fn)
     frame.write(bev_);
 }
 
+void connection::logout(stomplay::fun_type fn)
+{
+    assert(fn);
+
+    auto receipt_id = create_receipt_id();
+
+    frame frame;
+    frame.push(stomptalk::method::tag::disconnect::name());
+    frame.push(stomptalk::header::receipt(receipt_id));
+
+    stomplay_.add_handler(receipt_id, std::move(fn));
+
+    frame.write(bev_);
+}
+
+void connection::send(stompconn::logon frame, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    logon(std::move(frame), std::move(fn));
+}
+
+void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    subscribe(std::move(frame), std::move(fn));
+}
+
 void connection::send(stompconn::send frame, stomplay::fun_type fn)
 {
     assert(fn);
@@ -234,3 +263,50 @@ void connection::send(stompconn::send frame, stomplay::fun_type fn)
     send(std::move(frame));
 }
 
+void connection::send(stompconn::ack frame, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    ack(std::move(frame), std::move(fn));
+}
+
+void connection::send(stompconn::ack frame)
+{
+    ack(std::move(frame));
+}
+
+void connection::send(stompconn::nack frame, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    nack(std::move(frame), std::move(fn));
+}
+
+void connection::send(stompconn::nack frame)
+{
+    nack(std::move(frame));
+}
+
+void connection::ack(stompconn::ack frame, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    auto receipt_id = create_receipt_id();
+    frame.push(stomptalk::header::receipt(receipt_id));
+
+    stomplay_.add_handler(receipt_id, std::move(fn));
+
+    ack(std::move(frame));
+}
+
+void connection::nack(stompconn::nack frame, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    auto receipt_id = create_receipt_id();
+    frame.push(stomptalk::header::receipt(receipt_id));
+
+    stomplay_.add_handler(receipt_id, std::move(fn));
+
+    nack(std::move(frame));
+}

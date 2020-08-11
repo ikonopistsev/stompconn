@@ -23,6 +23,7 @@ public:
 
     virtual void reserve(std::size_t len) override;
     virtual void write(btpro::tcp::bev& output);
+
     std::string str() const;
 };
 
@@ -62,14 +63,22 @@ public:
               fn_type fn,
               std::size_t size_reserve = 320);
 
-    // выставить хидер
-    void push(stomptalk::header::fixed hdr);
+    template<class T>
+    void push(stomptalk::header::basic<T> hdr)
+    {
+        frame::push(hdr);
+    }
+
+    // разрешаем кастомные хидера
+    void push(stomptalk::header::custom hdr);
 
     void push(stomptalk::header::id hdr);
 
     void set(fn_type fn);
 
     const fn_type& fn() const noexcept;
+
+    fn_type&& fn() noexcept;
 
     const std::string& id() const noexcept;
 
@@ -90,5 +99,21 @@ public:
     void write(bt::bev& output) override;
 };
 
-} // namespace stomptalk
+class ack final
+    : public frame
+{
+public:
+    ack(std::string_view ack_id, std::size_t size_reserve = 64);
+    ack(const packet& p);
+};
+
+class nack final
+    : public frame
+{
+public:
+    nack(std::string_view ack_id, std::size_t size_reserve = 64);
+    nack(const packet& p);
+};
+
+} // namespace stompconn
 

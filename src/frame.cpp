@@ -1,4 +1,5 @@
 #include "stompconn/frame.hpp"
+#include <stdexcept>
 
 using namespace stompconn;
 
@@ -92,14 +93,14 @@ subscribe::subscribe(std::string_view destination,
     push(stomptalk::header::destination(destination));
 }
 
-// выставить хидер
-void subscribe::push(stomptalk::header::fixed hdr)
+void subscribe::push(stomptalk::header::custom hdr)
 {
     frame::push(hdr);
 }
 
 void subscribe::push(stomptalk::header::id hdr)
 {
+    // сохраняем кастомный id
     id_ = hdr.value();
     frame::push(hdr);
 }
@@ -112,6 +113,11 @@ void subscribe::set(fn_type fn)
 const subscribe::fn_type& subscribe::fn() const noexcept
 {
     return fn_;
+}
+
+subscribe::fn_type&& subscribe::fn() noexcept
+{
+    return std::move(fn_);
 }
 
 const std::string& subscribe::id() const noexcept
@@ -142,9 +148,10 @@ void send::write(bt::bev& output)
     if (payload_size)
     {
         // печатаем размер контента
+        // тут надо хранить объект строки до передачи его в хидер
         auto size_text = std::to_string(payload_size);
-        std::string_view size(size_text.data(), size_text.size());
-        push(stomptalk::header::content_length(size));
+        // выставляем размер данных
+        push(stomptalk::header::content_length(std::string_view(size_text)));
 
         // маркер конца хидеров
         append_ref(stomptalk::make_ref("\n"));
@@ -165,3 +172,38 @@ void send::write(bt::bev& output)
     output.write(std::move(data_));
 }
 
+ack::ack(std::string_view ack_id, std::size_t size_reserve)
+{
+    if (ack_id.empty())
+        throw std::runtime_error("ack id empty");
+
+    reserve(size_reserve);
+    frame::push(stomptalk::method::tag::ack::name());
+    push(stomptalk::header::id(ack_id));
+}
+
+ack::ack(const packet& p)
+    : ack(p.get(stomptalk::header::ack()))
+{
+    auto t = p.get(stomptalk::header::transaction());
+    if (!t.empty())
+        push(stomptalk::header::transaction(t));
+}
+
+nack::nack(std::string_view ack_id, std::size_t size_reserve)
+{
+    if (ack_id.empty())
+        throw std::runtime_error("nack id empty");
+
+    reserve(size_reserve);
+    frame::push(stomptalk::method::tag::nack::name());
+    push(stomptalk::header::id(ack_id));
+}
+
+nack::nack(const packet& p)
+    : nack(p.get(stomptalk::header::message_id()))
+{
+    auto t = p.get(stomptalk::header::transaction());
+    if (!t.empty())
+        push(stomptalk::header::transaction(t));
+}
