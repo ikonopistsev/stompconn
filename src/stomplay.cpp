@@ -19,7 +19,7 @@ void stomplay::on_frame(stomptalk::parser_hook& hook) noexcept
         std::cerr << "stomplay frame" << std::endl;
     }
 
-    hook.next_frame();
+    hook.generic_error();
 }
 
 void stomplay::on_method(stomptalk::parser_hook& hook,
@@ -47,7 +47,7 @@ void stomplay::on_method(stomptalk::parser_hook& hook,
         std::cerr << "stomplay method: " << method << " error" << std::endl;
     }
 
-    hook.next_frame();
+    hook.generic_error();
 }
 
 void stomplay::on_hdr_key(stomptalk::parser_hook& hook,
@@ -73,7 +73,7 @@ void stomplay::on_hdr_key(stomptalk::parser_hook& hook,
         std::cerr << "stomplay header" << std::endl;
     }
 
-    hook.next_frame();
+    hook.generic_error();
 }
 
 void stomplay::on_hdr_val(stomptalk::parser_hook& hook,
@@ -101,7 +101,7 @@ void stomplay::on_hdr_val(stomptalk::parser_hook& hook,
             {
                 std::cerr << "stomplay header val: content_length: " << val
                           << " size? = " << content_len << std::endl;
-                hook.next_frame();
+                hook.generic_error();
                 return;
             }
             break;
@@ -126,7 +126,7 @@ void stomplay::on_hdr_val(stomptalk::parser_hook& hook,
         std::cerr << "stomplay header val" << std::endl;
     }
 
-    hook.next_frame();
+    hook.generic_error();
 }
 
 void stomplay::on_body(stomptalk::parser_hook& hook,
@@ -150,7 +150,7 @@ void stomplay::on_body(stomptalk::parser_hook& hook,
         std::cerr << "stomplay body" << std::endl;
     }
 
-    hook.next_frame();
+    hook.generic_error();
 }
 
 void stomplay::on_frame_end(stomptalk::parser_hook&) noexcept

@@ -85,6 +85,11 @@ public:
         on_error_fn_ = std::move(fn);
     }
 
+    std::string_view error_str() const noexcept
+    {
+        return hook_.error_str();
+    }
+
     void logout();
 
     void add_handler(const std::string& id, fun_type fn);

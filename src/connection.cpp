@@ -41,14 +41,25 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
             // парсим данные
             auto rc = stomplay_.parse(ptr, needle);
 
-            // очищаем input
-            input.drain(rc);
-
             // если не все пропарсилось
-            // это ошибка и хз чо делать
+            // это ошибка
             // дисконнектимся
             if (rc < needle)
+            {
+                std::cerr << "stomplay parse: "
+                          << stomplay_.error_str() << std::endl;
+
+                // очищаем весь входящиц буфер
+                input.drain(input.size());
+                // вызываем ошибку
                 do_evcb(BEV_EVENT_ERROR);
+            }
+            else
+            {
+                // очищаем input
+                // сколько пропарсили
+                input.drain(rc);
+            }
         }
 
         return;
