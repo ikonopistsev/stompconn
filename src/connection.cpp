@@ -321,3 +321,8 @@ void connection::nack(stompconn::nack frame, stomplay::fun_type fn)
 
     nack(std::move(frame));
 }
+
+void connection::on_error(stomplay::fun_type fn)
+{
+    stomplay_.on_error(std::move(fn));
+}

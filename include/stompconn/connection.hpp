@@ -151,6 +151,7 @@ public:
         frame.write(bev_);
     }
 
+    void on_error(stomplay::fun_type fn);
 };
 
 } // namespace stomptalk
