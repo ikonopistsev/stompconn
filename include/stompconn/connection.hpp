@@ -132,6 +132,63 @@ public:
         nack(stompconn::nack(p));
     }
 
+    void begin(std::string_view transaction_id, stomplay::fun_type fn);
+
+    void begin(stompconn::begin frame, stomplay::fun_type fn);
+
+    void begin(std::string_view transaction_id);
+
+    void begin(stompconn::begin frame)
+    {
+        frame.write(bev_);
+    }
+
+    void commit(std::string_view transaction_id, stomplay::fun_type fn);
+
+    void commit(stompconn::commit frame, stomplay::fun_type fn);
+
+    void commit(std::string_view transaction_id);
+
+    void commit(const packet& p, stomplay::fun_type fn)
+    {
+        assert(fn);
+
+        commit(stompconn::commit(p), std::move(fn));
+    }
+
+    void commit(const packet& p)
+    {
+        commit(stompconn::commit(p));
+    }
+
+    void commit(stompconn::commit frame)
+    {
+        frame.write(bev_);
+    }
+
+    void abort(std::string_view transaction_id, stomplay::fun_type fn);
+
+    void abort(stompconn::abort frame, stomplay::fun_type fn);
+
+    void abort(std::string_view transaction_id);
+
+    void abort(const packet& p, stomplay::fun_type fn)
+    {
+        assert(fn);
+
+        abort(stompconn::abort(p), std::move(fn));
+    }
+
+    void abort(const packet& p)
+    {
+        abort(stompconn::abort(p));
+    }
+
+    void abort(stompconn::abort frame)
+    {
+        frame.write(bev_);
+    }
+
     void send(stompconn::logon frame, stomplay::fun_type fn);
 
     void send(stompconn::subscribe frame, stomplay::fun_type fn);
@@ -143,6 +200,18 @@ public:
     void send(stompconn::nack frame, stomplay::fun_type fn);
 
     void send(stompconn::nack frame);
+
+    void send(stompconn::begin frame, stomplay::fun_type fn);
+
+    void send(stompconn::begin frame);
+
+    void send(stompconn::commit frame, stomplay::fun_type fn);
+
+    void send(stompconn::commit frame);
+
+    void send(stompconn::abort frame, stomplay::fun_type fn);
+
+    void send(stompconn::abort frame);
 
     void send(stompconn::send frame, stomplay::fun_type fn);
 

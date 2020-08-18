@@ -298,6 +298,42 @@ void connection::send(stompconn::nack frame)
     nack(std::move(frame));
 }
 
+void connection::send(stompconn::begin frame, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    begin(std::move(frame), std::move(fn));
+}
+
+void connection::send(stompconn::begin frame)
+{
+    begin(std::move(frame));
+}
+
+void connection::send(stompconn::commit frame, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    commit(std::move(frame), std::move(fn));
+}
+
+void connection::send(stompconn::commit frame)
+{
+    commit(std::move(frame));
+}
+
+void connection::send(stompconn::abort frame, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    abort(std::move(frame), std::move(fn));
+}
+
+void connection::send(stompconn::abort frame)
+{
+    abort(std::move(frame));
+}
+
 void connection::ack(stompconn::ack frame, stomplay::fun_type fn)
 {
     assert(fn);
@@ -321,6 +357,79 @@ void connection::nack(stompconn::nack frame, stomplay::fun_type fn)
 
     nack(std::move(frame));
 }
+
+void connection::begin(std::string_view transaction_id, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    begin(stompconn::begin(transaction_id), std::move(fn));
+}
+
+void connection::begin(stompconn::begin frame, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    auto receipt_id = create_receipt_id();
+    frame.push(stomptalk::header::receipt(receipt_id));
+
+    stomplay_.add_handler(receipt_id, std::move(fn));
+
+    begin(std::move(frame));
+}
+
+void connection::begin(std::string_view transaction_id)
+{
+    begin(stompconn::begin(transaction_id));
+}
+
+void connection::commit(std::string_view transaction_id, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    commit(stompconn::commit(transaction_id), std::move(fn));
+}
+
+void connection::commit(stompconn::commit frame, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    auto receipt_id = create_receipt_id();
+    frame.push(stomptalk::header::receipt(receipt_id));
+
+    stomplay_.add_handler(receipt_id, std::move(fn));
+
+    commit(std::move(frame));
+}
+
+void connection::commit(std::string_view transaction_id)
+{
+    commit(stompconn::commit(transaction_id));
+}
+
+void connection::abort(std::string_view transaction_id, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    abort(stompconn::abort(transaction_id), std::move(fn));
+}
+
+void connection::abort(stompconn::abort frame, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    auto receipt_id = create_receipt_id();
+    frame.push(stomptalk::header::receipt(receipt_id));
+
+    stomplay_.add_handler(receipt_id, std::move(fn));
+
+    abort(std::move(frame));
+}
+
+void connection::abort(std::string_view transaction_id)
+{
+    abort(stompconn::abort(transaction_id));
+}
+
 
 void connection::on_error(stomplay::fun_type fn)
 {

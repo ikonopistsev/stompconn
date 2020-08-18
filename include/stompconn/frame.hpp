@@ -115,5 +115,28 @@ public:
     nack(const packet& p);
 };
 
+class begin final
+    : public frame
+{
+public:
+    begin(std::string_view transaction_id, std::size_t size_reserve = 64);
+};
+
+class commit final
+    : public frame
+{
+public:
+    commit(std::string_view transaction_id, std::size_t size_reserve = 64);
+    commit(const packet& p);
+};
+
+class abort final
+    : public frame
+{
+public:
+    abort(std::string_view transaction_id, std::size_t size_reserve = 64);
+    abort(const packet& p);
+};
+
 } // namespace stompconn
 
