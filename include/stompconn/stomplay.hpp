@@ -62,13 +62,13 @@ private:
 
     void clear();
 
+public:
+    stomplay() = default;
+
     const std::string& session() const noexcept
     {
         return session_;
     }
-
-public:
-    stomplay() = default;
 
     std::size_t parse(const char* ptr, std::size_t size)
     {

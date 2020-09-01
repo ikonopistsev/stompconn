@@ -21,6 +21,9 @@ private:
 
     stomplay stomplay_{};
 
+    std::size_t connection_id_{};
+    std::size_t message_seq_id_{};
+
     template<class A>
     struct proxy
     {
@@ -44,10 +47,14 @@ private:
 
     void create();
 
-    void exec_subscribe(const stomplay::fun_type& fn, packet p);
+    void exec_subscribe(const stomplay::fun_type& fn, packet p) noexcept;
 
     void exec_unsubscribe(const stomplay::fun_type& fn,
-                          const std::string& id, packet p);
+                          const std::string& id, packet p) noexcept;
+
+    std::string message_seq_id() noexcept;
+    std::string connection_seq_id() noexcept;
+    std::string create_id(char L) noexcept;
 
 public:
     connection(btpro::queue_ref queue,
@@ -84,9 +91,16 @@ public:
         bev_.set_timeout(nullptr, &tv);
     }
 
+    const std::string& session() const noexcept
+    {
+        return stomplay_.session();
+    }
+
     // stomp CONNECT
+    [[deprecated("replaced by send logon frame")]]
     void logon(stompconn::logon frame, stomplay::fun_type fn);
 
+    [[deprecated("replaced by send subscribe frame")]]
     void subscribe(stompconn::subscribe frame, stomplay::fun_type fn);
 
     void unsubscribe(std::string_view id, stomplay::fun_type fn);
@@ -94,99 +108,113 @@ public:
     // stomp DISCONNECT
     void logout(stomplay::fun_type fn);
 
+    [[deprecated("replaced by send ack frame")]]
     void ack(stompconn::ack frame, stomplay::fun_type fn);
 
+    [[deprecated("Replaced by send ack frame")]]
     void ack(stompconn::ack frame)
     {
-        frame.write(bev_);
+        send(std::move(frame));
     }
 
     void ack(const packet& p, stomplay::fun_type fn)
     {
         assert(fn);
-
-        ack(stompconn::ack(p), std::move(fn));
+        send(stompconn::ack(p), std::move(fn));
     }
 
     void ack(const packet& p)
     {
-        ack(stompconn::ack(p));
+        send(stompconn::ack(p));
     }
 
+    [[deprecated("Replaced by send nack frame")]]
     void nack(stompconn::nack frame, stomplay::fun_type fn);
 
+    [[deprecated("Replaced by send nack frame")]]
     void nack(stompconn::nack frame)
     {
-        frame.write(bev_);
+        send(std::move(frame));
     }
 
     void nack(const packet& p, stomplay::fun_type fn)
     {
         assert(fn);
-
-        nack(stompconn::nack(p), std::move(fn));
+        send(stompconn::nack(p), std::move(fn));
     }
 
     void nack(const packet& p)
     {
-        nack(stompconn::nack(p));
+        send(stompconn::nack(p));
     }
 
-    void begin(std::string_view transaction_id, stomplay::fun_type fn);
-
+    [[deprecated("replaced by send begin frame")]]
     void begin(stompconn::begin frame, stomplay::fun_type fn);
 
-    void begin(std::string_view transaction_id);
-
+    [[deprecated("replaced by send begin frame")]]
     void begin(stompconn::begin frame)
     {
-        frame.write(bev_);
+        send(std::move(frame));
+    }
+
+    void begin(std::string_view transaction_id, stomplay::fun_type fn)
+    {
+        assert(fn);
+        send(stompconn::begin(transaction_id), std::move(fn));
+    }
+
+    void begin(std::string_view transaction_id)
+    {
+        send(stompconn::begin(transaction_id));
+    }
+
+    [[deprecated("replaced by send commit frame")]]
+    void commit(stompconn::commit frame, stomplay::fun_type fn);
+
+    [[deprecated("replaced by send commit frame")]]
+    void commit(stompconn::commit frame)
+    {
+        send(std::move(frame));
     }
 
     void commit(std::string_view transaction_id, stomplay::fun_type fn);
-
-    void commit(stompconn::commit frame, stomplay::fun_type fn);
 
     void commit(std::string_view transaction_id);
 
     void commit(const packet& p, stomplay::fun_type fn)
     {
         assert(fn);
-
-        commit(stompconn::commit(p), std::move(fn));
+        send(stompconn::commit(p), std::move(fn));
     }
 
     void commit(const packet& p)
     {
-        commit(stompconn::commit(p));
+        send(stompconn::commit(p));
     }
 
-    void commit(stompconn::commit frame)
+    [[deprecated("replaced by send abort frame")]]
+    void abort(stompconn::abort frame, stomplay::fun_type fn);
+
+    [[deprecated("replaced by send abort frame")]]
+    void abort(stompconn::abort frame)
     {
-        frame.write(bev_);
+        send(std::move(frame));
     }
 
     void abort(std::string_view transaction_id, stomplay::fun_type fn);
 
-    void abort(stompconn::abort frame, stomplay::fun_type fn);
 
     void abort(std::string_view transaction_id);
 
     void abort(const packet& p, stomplay::fun_type fn)
     {
         assert(fn);
-
-        abort(stompconn::abort(p), std::move(fn));
+        send(stompconn::abort(p), std::move(fn));
     }
 
     void abort(const packet& p)
     {
-        abort(stompconn::abort(p));
-    }
-
-    void abort(stompconn::abort frame)
-    {
-        frame.write(bev_);
+        send(stompconn::abort(p));
     }
 
     void send(stompconn::logon frame, stomplay::fun_type fn);
@@ -195,32 +223,28 @@ public:
 
     void send(stompconn::ack frame, stomplay::fun_type fn);
 
-    void send(stompconn::ack frame);
-
     void send(stompconn::nack frame, stomplay::fun_type fn);
-
-    void send(stompconn::nack frame);
 
     void send(stompconn::begin frame, stomplay::fun_type fn);
 
-    void send(stompconn::begin frame);
-
     void send(stompconn::commit frame, stomplay::fun_type fn);
-
-    void send(stompconn::commit frame);
 
     void send(stompconn::abort frame, stomplay::fun_type fn);
 
-    void send(stompconn::abort frame);
-
     void send(stompconn::send frame, stomplay::fun_type fn);
 
-    void send(stompconn::send frame)
+    void send(stompconn::frame frame)
     {
         frame.write(bev_);
     }
 
     void on_error(stomplay::fun_type fn);
+
+    std::string create_subs_id() noexcept;
+
+    std::string create_receipt_id() noexcept;
+
+    std::string create_message_id() noexcept;
 };
 
 } // namespace stomptalk

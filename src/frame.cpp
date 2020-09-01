@@ -28,7 +28,7 @@ void frame::write(btpro::tcp::bev& output)
 #ifndef NDEBUG
     std::cout << data_.str() << std::endl << std::endl;
 #endif
-    append_ref(stomptalk::make_ref("\n\0"));
+    append_ref(stomptalk::sv("\n\0"));
     output.write(std::move(data_));
 }
 
@@ -40,7 +40,7 @@ std::string frame::str() const
 logon::logon(std::string_view host, std::size_t size_reserve)
 {
     reserve(size_reserve);
-    push(stomptalk::method::tag::connect::name());
+    push(stomptalk::method::tag::connect());
     push(stomptalk::header::ver12());
     push(stomptalk::header::host(host));
 }
@@ -49,7 +49,7 @@ logon::logon(std::string_view host, std::string_view login,
     std::size_t size_reserve)
 {
     reserve(size_reserve);
-    push(stomptalk::method::tag::connect::name());
+    push(stomptalk::method::tag::connect());
     push(stomptalk::header::ver12());
     push(stomptalk::header::host(host));
     push(stomptalk::header::login(login));
@@ -59,7 +59,7 @@ logon::logon(std::string_view host, std::string_view login,
     std::string_view passcode, std::size_t size_reserve)
 {
     reserve(size_reserve);
-    push(stomptalk::method::tag::connect::name());
+    push(stomptalk::method::tag::connect());
     push(stomptalk::header::ver12());
     push(stomptalk::header::host(host));
     push(stomptalk::header::login(login));
@@ -70,7 +70,7 @@ subscribe::subscribe(std::string_view destination,
           std::size_t size_reserve)
 {
     reserve(size_reserve);
-    frame::push(stomptalk::method::tag::subscribe::name());
+    frame::push(stomptalk::method::tag::subscribe());
     push(stomptalk::header::destination(destination));
 }
 
@@ -79,7 +79,7 @@ subscribe::subscribe(std::string_view destination,
     : fn_(std::move(fn))
 {
     reserve(size_reserve);
-    frame::push(stomptalk::method::tag::subscribe::name());
+    frame::push(stomptalk::method::tag::subscribe());
     push(stomptalk::header::destination(destination));
 }
 
@@ -89,7 +89,7 @@ subscribe::subscribe(std::string_view destination,
     , fn_(std::move(fn))
 {
     reserve(size_reserve);
-    frame::push(stomptalk::method::tag::subscribe::name());
+    frame::push(stomptalk::method::tag::subscribe());
     push(stomptalk::header::destination(destination));
 }
 
@@ -133,7 +133,7 @@ std::string&& subscribe::id() noexcept
 send::send(std::string_view destination, std::size_t size_reserve)
 {
     data_.expand(size_reserve);
-    push(stomptalk::method::tag::send::name());
+    push(stomptalk::method::tag::send());
     push(stomptalk::header::destination(destination));
 }
 
@@ -154,16 +154,16 @@ void send::write(bt::bev& output)
         push(stomptalk::header::content_length(std::string_view(size_text)));
 
         // маркер конца хидеров
-        append_ref(stomptalk::make_ref("\n"));
+        append_ref(stomptalk::sv("\n"));
 
         // добавляем данные
         data_.append(std::move(payload_));
 
         // маркер конца пакета
-        append_ref(stomptalk::make_ref("\0"));
+        append_ref(stomptalk::sv("\0"));
     }
     else
-        append_ref(stomptalk::make_ref("\n\0"));
+        append_ref(stomptalk::sv("\n\0"));
 
 #ifndef NDEBUG
     std::cout << data_.str() << std::endl << std::endl;
@@ -178,7 +178,7 @@ ack::ack(std::string_view ack_id, std::size_t size_reserve)
         throw std::runtime_error("ack id empty");
 
     reserve(size_reserve);
-    frame::push(stomptalk::method::tag::ack::name());
+    frame::push(stomptalk::method::tag::ack());
     push(stomptalk::header::id(ack_id));
 }
 
@@ -196,7 +196,7 @@ nack::nack(std::string_view ack_id, std::size_t size_reserve)
         throw std::runtime_error("nack id empty");
 
     reserve(size_reserve);
-    frame::push(stomptalk::method::tag::nack::name());
+    frame::push(stomptalk::method::tag::nack());
     push(stomptalk::header::id(ack_id));
 }
 
@@ -214,7 +214,7 @@ begin::begin(std::string_view transaction_id, std::size_t size_reserve)
         throw std::runtime_error("transaction id empty");
 
     reserve(size_reserve);
-    frame::push(stomptalk::method::tag::begin::name());
+    frame::push(stomptalk::method::tag::begin());
     push(stomptalk::header::transaction(transaction_id));
 }
 
@@ -224,7 +224,7 @@ commit::commit(std::string_view transaction_id, std::size_t size_reserve)
         throw std::runtime_error("transaction id empty");
 
     reserve(size_reserve);
-    frame::push(stomptalk::method::tag::nack::name());
+    frame::push(stomptalk::method::tag::nack());
     push(stomptalk::header::transaction(transaction_id));
 }
 
@@ -238,7 +238,7 @@ abort::abort(std::string_view transaction_id, std::size_t size_reserve)
         throw std::runtime_error("transaction id empty");
 
     reserve(size_reserve);
-    frame::push(stomptalk::method::tag::nack::name());
+    frame::push(stomptalk::method::tag::nack());
     push(stomptalk::header::transaction(transaction_id));
 }
 
