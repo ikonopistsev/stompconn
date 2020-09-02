@@ -32,6 +32,24 @@ void frame::write(btpro::tcp::bev& output)
     output.write(std::move(data_));
 }
 
+std::size_t frame::write_all(btpro::socket sock)
+{
+#ifndef NDEBUG
+    std::cout << data_.str() << std::endl << std::endl;
+#endif
+    append_ref(stomptalk::sv("\n\0"));
+
+    std::size_t result = 0;
+    do {
+        auto rc = data_.write(sock);
+        if (btpro::code::fail == rc)
+            throw std::runtime_error("frame write");
+        result += static_cast<std::size_t>(rc);
+    } while (!data_.empty());
+
+    return result;
+}
+
 std::string frame::str() const
 {
     return data_.str();
@@ -142,7 +160,7 @@ void send::payload(btpro::buffer payload)
     payload_.append(std::move(payload));
 }
 
-void send::write(bt::bev& output)
+void send::push_palyoad()
 {
     auto payload_size = payload_.size();
     if (payload_size)
@@ -169,7 +187,27 @@ void send::write(bt::bev& output)
     std::cout << data_.str() << std::endl << std::endl;
 #endif
 
+}
+
+void send::write(bt::bev& output)
+{
+    push_palyoad();
     output.write(std::move(data_));
+}
+
+std::size_t send::write_all(btpro::socket sock)
+{
+    push_palyoad();
+
+    std::size_t result = 0;
+    do {
+        auto rc = data_.write(sock);
+        if (btpro::code::fail == rc)
+            throw std::runtime_error("frame write");
+        result += static_cast<std::size_t>(rc);
+    } while (!data_.empty());
+
+    return result;
 }
 
 ack::ack(std::string_view ack_id, std::size_t size_reserve)

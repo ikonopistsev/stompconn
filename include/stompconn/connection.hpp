@@ -233,7 +233,8 @@ public:
 
     void send(stompconn::send frame, stomplay::fun_type fn);
 
-    void send(stompconn::frame frame)
+    template<class F>
+    void send(F frame)
     {
         frame.write(bev_);
     }

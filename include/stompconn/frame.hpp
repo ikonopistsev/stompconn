@@ -23,6 +23,7 @@ public:
 
     virtual void reserve(std::size_t len) override;
     virtual void write(btpro::tcp::bev& output);
+    virtual std::size_t write_all(btpro::socket sock);
 
     std::string str() const;
 };
@@ -91,12 +92,16 @@ class send final
 private:
     btpro::buffer payload_{};
 
+    void push_palyoad();
+
 public:
     send(std::string_view destination, std::size_t size_reserve = 320);
 
     void payload(btpro::buffer payload);
 
     void write(bt::bev& output) override;
+
+    std::size_t write_all(btpro::socket sock) override;
 };
 
 class ack final
