@@ -75,7 +75,10 @@ logon::logon(std::string_view host, std::string_view login,
     if (!host.empty())
         push(stomptalk::header::host(host));
     else
-        push(stomptalk::header::host(stomptalk::sv("/")));
+    {
+        using namespace stomptalk::header;
+        push(known_ref<tag::host, std::string_view>(stomptalk::sv("/")));
+    }
     if (!login.empty())
         push(stomptalk::header::login(login));
 }
@@ -89,7 +92,10 @@ logon::logon(std::string_view host, std::string_view login,
     if (!host.empty())
         push(stomptalk::header::host(host));
     else
-        push(stomptalk::header::host(stomptalk::sv("/")));
+    {
+        using namespace stomptalk::header;
+        push(known_ref<tag::host, std::string_view>(stomptalk::sv("/")));
+    }
     if (!login.empty())
         push(stomptalk::header::login(login));
     if (!passcode.empty())
