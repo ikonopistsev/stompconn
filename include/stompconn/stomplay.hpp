@@ -14,9 +14,9 @@ class stomplay final
     : public stomptalk::hook_base
 {
 public:
-    typedef stomptalk::header::tag::content_type::content_type_id
-        content_type_id;
-    typedef std::function<void(packet)> fun_type;
+    using content_type_id =
+        stomptalk::header::tag::content_type::content_type_id;
+    using fun_type = std::function<void(packet)>;
 
 private:
     stomptalk::parser stomp_{};

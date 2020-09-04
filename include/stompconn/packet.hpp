@@ -45,13 +45,13 @@ public:
 
     bool must_ack() const noexcept
     {
-        return !get(stomptalk::header::ack()).empty();
+        return !get(stomptalk::header::tag::ack()).empty();
     }
 
     template<class T>
-    std::string_view get(stomptalk::header::basic<T>) const noexcept
+    std::string_view get(T) const noexcept
     {
-        return header_.get(stomptalk::header::basic<T>());
+        return header_.get(T());
     }
 
     std::string_view get(std::string_view key) const noexcept
@@ -92,11 +92,12 @@ public:
     std::string dump() const
     {
         std::string rc;
-        rc.reserve(320);
-
-        rc += method_.str();
+        auto method = method_.str();
+        auto header_dump = header_.dump();
+        rc.reserve(method.size() + header_dump.size() + size() + 2);
+        rc += method;
         rc += '\n';
-        rc += header_.dump();
+        rc += header_dump;
         rc += '\n';
         if (!payload_.empty())
             rc += payload_.str();

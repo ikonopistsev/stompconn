@@ -111,18 +111,6 @@ subscribe::subscribe(std::string_view destination,
     push(stomptalk::header::destination(destination));
 }
 
-void subscribe::push(stomptalk::header::custom hdr)
-{
-    frame::push(hdr);
-}
-
-void subscribe::push(stomptalk::header::id hdr)
-{
-    // сохраняем кастомный id
-    id_ = hdr.value();
-    frame::push(hdr);
-}
-
 void subscribe::set(fn_type fn)
 {
     fn_ = std::move(fn);
@@ -165,11 +153,8 @@ void send::push_palyoad()
     auto payload_size = payload_.size();
     if (payload_size)
     {
-        // печатаем размер контента
-        // тут надо хранить объект строки до передачи его в хидер
-        auto size_text = std::to_string(payload_size);
         // выставляем размер данных
-        push(stomptalk::header::content_length(std::string_view(size_text)));
+        push(stomptalk::header::content_length(payload_size));
 
         // маркер конца хидеров
         append_ref(stomptalk::sv("\n"));
@@ -221,9 +206,9 @@ ack::ack(std::string_view ack_id, std::size_t size_reserve)
 }
 
 ack::ack(const packet& p)
-    : ack(p.get(stomptalk::header::ack()))
+    : ack(p.get(stomptalk::header::tag::ack()))
 {
-    auto t = p.get(stomptalk::header::transaction());
+    auto t = p.get(stomptalk::header::tag::transaction());
     if (!t.empty())
         push(stomptalk::header::transaction(t));
 }
@@ -239,9 +224,9 @@ nack::nack(std::string_view ack_id, std::size_t size_reserve)
 }
 
 nack::nack(const packet& p)
-    : nack(p.get(stomptalk::header::message_id()))
+    : nack(p.get(stomptalk::header::tag::message_id()))
 {
-    auto t = p.get(stomptalk::header::transaction());
+    auto t = p.get(stomptalk::header::tag::transaction());
     if (!t.empty())
         push(stomptalk::header::transaction(t));
 }
@@ -262,12 +247,12 @@ commit::commit(std::string_view transaction_id, std::size_t size_reserve)
         throw std::runtime_error("transaction id empty");
 
     reserve(size_reserve);
-    frame::push(stomptalk::method::tag::nack());
+    frame::push(stomptalk::method::tag::commit());
     push(stomptalk::header::transaction(transaction_id));
 }
 
 commit::commit(const packet& p)
-    : commit(p.get(stomptalk::header::transaction()))
+    : commit(p.get(stomptalk::header::tag::transaction()))
 {   }
 
 abort::abort(std::string_view transaction_id, std::size_t size_reserve)
@@ -276,10 +261,10 @@ abort::abort(std::string_view transaction_id, std::size_t size_reserve)
         throw std::runtime_error("transaction id empty");
 
     reserve(size_reserve);
-    frame::push(stomptalk::method::tag::nack());
+    frame::push(stomptalk::method::tag::abort());
     push(stomptalk::header::transaction(transaction_id));
 }
 
 abort::abort(const packet& p)
-    : abort(p.get(stomptalk::header::transaction()))
+    : abort(p.get(stomptalk::header::tag::transaction()))
 {   }

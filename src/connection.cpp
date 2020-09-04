@@ -230,6 +230,9 @@ void connection::send(stompconn::send frame, stomplay::fun_type fn)
 {
     assert(fn);
 
+    if (frame.mask(stomptalk::header::tag::transaction()))
+        throw std::runtime_error("receipt for transaction");
+
     auto receipt_id = create_receipt_id();
     frame.push(stomptalk::header::receipt(receipt_id));
 
@@ -345,7 +348,6 @@ void connection::abort(std::string_view transaction_id)
 {
     send(stompconn::abort(transaction_id));
 }
-
 
 void connection::on_error(stomplay::fun_type fn)
 {

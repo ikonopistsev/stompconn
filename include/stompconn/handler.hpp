@@ -8,9 +8,9 @@ namespace stompconn {
 class handler
 {
 public:
-    typedef std::function<void(packet)> fn_type;
-    typedef std::unordered_map<std::string, fn_type> storage_type;
-    typedef storage_type::iterator iterator;
+    using fn_type = std::function<void(packet)>;
+    using storage_type = std::unordered_map<std::string, fn_type>;
+    using iterator = storage_type::iterator;
 
     handler() = default;
 

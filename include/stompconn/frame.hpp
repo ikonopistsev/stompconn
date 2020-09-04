@@ -64,16 +64,25 @@ public:
               fn_type fn,
               std::size_t size_reserve = 320);
 
-    template<class T>
-    void push(stomptalk::header::basic<T> hdr)
+    template<class K, class V>
+    void push(stomptalk::header::known<K, V> hdr)
     {
         frame::push(hdr);
     }
 
-    // разрешаем кастомные хидера
-    void push(stomptalk::header::custom hdr);
+    template<class K, class V>
+    void push(stomptalk::header::known_ref<K, V> hdr)
+    {
+        frame::push(hdr);
+    }
 
-    void push(stomptalk::header::id hdr);
+    template<class V>
+    void push(stomptalk::header::known<stomptalk::header::tag::id, V> hdr)
+    {
+        // сохраняем кастомный id
+        id_ = hdr.value();
+        frame::push(hdr);
+    }
 
     void set(fn_type fn);
 

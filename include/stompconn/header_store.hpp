@@ -92,7 +92,7 @@ public:
     }
 
     template<class T>
-    std::string_view get(stomptalk::header::basic<T>) const noexcept
+    std::string_view get(T) const noexcept
     {
         return get(header_index_[T::num]);
     }

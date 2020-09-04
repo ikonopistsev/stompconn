@@ -166,14 +166,14 @@ void stomplay::on_frame_end(stomptalk::parser_hook&) noexcept
         break;
 
     case stomptalk::method::tag::receipt::num: {
-        auto id = header_store_.get(stomptalk::header::receipt_id());
+        auto id = header_store_.get(stomptalk::header::tag::receipt_id());
         if (!id.empty())
             exec_on_receipt(id);
         break;
     }
 
     case stomptalk::method::tag::message::num: {
-        auto subs = header_store_.get(stomptalk::header::subscription());
+        auto subs = header_store_.get(stomptalk::header::tag::subscription());
         if (!subs.empty())
             exec_on_message(subs);
         break;
@@ -195,11 +195,11 @@ void stomplay::exec_on_error() noexcept
             return;
         }
 
-        auto subs = header_store_.get(stomptalk::header::subscription());
+        auto subs = header_store_.get(stomptalk::header::tag::subscription());
         if (!subs.empty())
             exec_on_receipt(subs);
 
-        auto id = header_store_.get(stomptalk::header::receipt_id());
+        auto id = header_store_.get(stomptalk::header::tag::receipt_id());
         if (!id.empty())
             exec_on_receipt(id);
 
@@ -221,7 +221,7 @@ void stomplay::exec_on_logon() noexcept
 {
     try
     {
-        session_ = header_store_.get(stomptalk::header::session());
+        session_ = header_store_.get(stomptalk::header::tag::session());
         on_logon_fn_(packet(header_store_, session_, method_, std::move(recv_)));
     }
     catch (const std::exception& e)
