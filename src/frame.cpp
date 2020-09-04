@@ -60,7 +60,10 @@ logon::logon(std::string_view host, std::size_t size_reserve)
     reserve(size_reserve);
     push(stomptalk::method::tag::connect());
     push(stomptalk::header::ver12());
-    push(stomptalk::header::host(host));
+    if (!host.empty())
+        push(stomptalk::header::host(host));
+    else
+        push(stomptalk::header::host(stomptalk::sv("/")));
 }
 
 logon::logon(std::string_view host, std::string_view login,
@@ -69,8 +72,12 @@ logon::logon(std::string_view host, std::string_view login,
     reserve(size_reserve);
     push(stomptalk::method::tag::connect());
     push(stomptalk::header::ver12());
-    push(stomptalk::header::host(host));
-    push(stomptalk::header::login(login));
+    if (!host.empty())
+        push(stomptalk::header::host(host));
+    else
+        push(stomptalk::header::host(stomptalk::sv("/")));
+    if (!login.empty())
+        push(stomptalk::header::login(login));
 }
 
 logon::logon(std::string_view host, std::string_view login,
@@ -79,9 +86,14 @@ logon::logon(std::string_view host, std::string_view login,
     reserve(size_reserve);
     push(stomptalk::method::tag::connect());
     push(stomptalk::header::ver12());
-    push(stomptalk::header::host(host));
-    push(stomptalk::header::login(login));
-    push(stomptalk::header::passcode(passcode));
+    if (!host.empty())
+        push(stomptalk::header::host(host));
+    else
+        push(stomptalk::header::host(stomptalk::sv("/")));
+    if (!login.empty())
+        push(stomptalk::header::login(login));
+    if (!passcode.empty())
+        push(stomptalk::header::passcode(passcode));
 }
 
 subscribe::subscribe(std::string_view destination,
