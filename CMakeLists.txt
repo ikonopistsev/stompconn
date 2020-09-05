@@ -15,6 +15,7 @@ set(source
     src/handler.cpp
     src/stomplay.cpp
     src/connection.cpp
+    src/version.cpp
 )
 
 set(pub_header

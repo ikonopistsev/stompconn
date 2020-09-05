@@ -6,10 +6,8 @@ namespace stompconn {
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
-
-static constexpr std::string_view version = STR(STOMPCONN_VERSION);
-
 #undef STR_HELPER
 #undef STR
+std::string_view version() noexcept;
 
 } // namespace stompconn
