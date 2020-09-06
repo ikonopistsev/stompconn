@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(stompconn VERSION 1.2.0 DESCRIPTION "stomp connection helper")
+project(stompconn VERSION 1.2.1 DESCRIPTION "stomp connection helper")
 
 option(STOMPCONN_DEBUG "show debug" OFF)
 option(STOMPCONN_LIBRARY_STATIC "Set library type to STATIC" ON)

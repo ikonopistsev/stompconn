@@ -85,34 +85,16 @@ void stomplay::on_hdr_val(stomptalk::parser_hook& hook,
         dump_ += ':';
         dump_ += val;
 #endif
+        using namespace stomptalk::header;
+
         auto num_id = header_.num_id();
-        if (num_id != stomptalk::header::num_id::none)
+        if (num_id != num_id::none)
             header_store_.set(num_id, current_header_, val);
         else
             header_store_.set(current_header_, val);
 
-        switch (num_id)
-        {
-        case stomptalk::header::tag::content_length::num: {
-            auto content_len = stomptalk::antoull(val);
-            if (content_len > 0ll)
-                hook.set(static_cast<std::uint64_t>(content_len));
-            else
-            {
-                std::cerr << "stomplay header val: content_length: " << val
-                          << " size? = " << content_len << std::endl;
-                hook.generic_error();
-                return;
-            }
-            break;
-        }
-        case stomptalk::header::tag::content_type::num:
-            content_type_ =
-                stomptalk::header::tag::content_type::eval_content_type(val);
-            break;
-
-        default: ;
-        }
+        if (num_id == tag::content_type::num)
+            content_type_ = tag::content_type::eval_content_type(val);
 
         return;
     }

@@ -10,6 +10,7 @@ SOURCES += \
     src/handler.cpp \
     src/stomplay.cpp \
     src/connection.cpp \
+    src/version.cpp
 
 HEADERS += \
     include/stompconn/handler.hpp \
@@ -18,6 +19,7 @@ HEADERS += \
     include/stompconn/frame.hpp \
     include/stompconn/connection.hpp \
     include/stompconn/header_store.hpp \
+    include/stompconn/version.hpp
 
 INCLUDEPATH += include \
     ../stomptalk/include \

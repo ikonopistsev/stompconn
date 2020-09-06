@@ -226,9 +226,10 @@ ack::ack(std::string_view ack_id, std::size_t size_reserve)
 ack::ack(const packet& p)
     : ack(p.get(stomptalk::header::tag::ack()))
 {
-    auto t = p.get(stomptalk::header::tag::transaction());
-    if (!t.empty())
-        push(stomptalk::header::transaction(t));
+// not working with rabbitmq
+//    auto t = p.get(stomptalk::header::tag::transaction());
+//    if (!t.empty())
+//        push(stomptalk::header::transaction(t));
 }
 
 nack::nack(std::string_view ack_id, std::size_t size_reserve)
@@ -244,9 +245,10 @@ nack::nack(std::string_view ack_id, std::size_t size_reserve)
 nack::nack(const packet& p)
     : nack(p.get(stomptalk::header::tag::message_id()))
 {
-    auto t = p.get(stomptalk::header::tag::transaction());
-    if (!t.empty())
-        push(stomptalk::header::transaction(t));
+// not working with rabbitmq
+//    auto t = p.get(stomptalk::header::tag::transaction());
+//    if (!t.empty())
+//        push(stomptalk::header::transaction(t));
 }
 
 begin::begin(std::string_view transaction_id, std::size_t size_reserve)
