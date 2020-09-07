@@ -134,6 +134,7 @@ class begin final
 {
 public:
     begin(std::string_view transaction_id, std::size_t size_reserve = 64);
+    begin(std::size_t transaction_id, std::size_t size_reserve = 64);
 };
 
 class commit final

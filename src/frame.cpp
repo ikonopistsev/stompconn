@@ -261,6 +261,13 @@ begin::begin(std::string_view transaction_id, std::size_t size_reserve)
     push(stomptalk::header::transaction(transaction_id));
 }
 
+begin::begin(std::size_t transaction_id, std::size_t size_reserve)
+{
+    reserve(size_reserve);
+    frame::push(stomptalk::method::tag::begin());
+    push(stomptalk::header::transaction(transaction_id));
+}
+
 commit::commit(std::string_view transaction_id, std::size_t size_reserve)
 {
     if (transaction_id.empty())
