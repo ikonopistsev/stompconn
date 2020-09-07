@@ -30,11 +30,6 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
         {
             // сколько непрерывных данных мы имеем
             auto needle = input.contiguous_space();
-#ifdef DEBUG
-            // это для тестов
-            if (needle > 1)
-                needle /= 2;
-#endif // DEBUG
             // получаем указатель
             auto ptr = reinterpret_cast<const char*>(
                 input.pullup(static_cast<ev_ssize_t>(needle)));
@@ -50,7 +45,7 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
                 std::cerr << "stomplay parse: "
                           << stomplay_.error_str() << std::endl;
 
-                // очищаем весь входящиц буфер
+                // очищаем весь входящий буфер
                 input.drain(input.size());
                 // вызываем ошибку
                 do_evcb(BEV_EVENT_ERROR);
