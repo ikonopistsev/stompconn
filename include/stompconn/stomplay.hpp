@@ -32,7 +32,7 @@ private:
     fun_type on_logon_fn_{};
     fun_type on_error_fn_{};
     handler handler_{};
-    std::string session_{false};
+    std::string session_{};
 
 #ifndef NDEBUG
     std::string dump_{};
