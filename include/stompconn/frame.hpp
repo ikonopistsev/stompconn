@@ -108,6 +108,11 @@ public:
 
     void payload(btpro::buffer payload);
 
+    std::size_t payload_size() const noexcept
+    {
+        return payload_.size();
+    }
+
     void write(bt::bev& output) override;
 
     std::size_t write_all(btpro::socket sock) override;
