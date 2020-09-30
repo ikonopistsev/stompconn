@@ -32,6 +32,18 @@ void frame::write(btpro::tcp::bev& output)
     output.write(std::move(data_));
 }
 
+btpro::buffer frame::data()
+{
+#ifndef NDEBUG
+    std::cout << data_.str() << std::endl << std::endl;
+#endif
+    append_ref(stomptalk::sv("\n\0"));
+
+    btpro::buffer rc;
+    rc.append(std::move(data_));
+    return rc;
+}
+
 std::size_t frame::write_all(btpro::socket sock)
 {
 #ifndef NDEBUG
@@ -196,6 +208,15 @@ void send::write(bt::bev& output)
 {
     push_palyoad();
     output.write(std::move(data_));
+}
+
+btpro::buffer send::data()
+{
+    push_palyoad();
+
+    btpro::buffer rc;
+    rc.append(std::move(data_));
+    return rc;
 }
 
 std::size_t send::write_all(btpro::socket sock)

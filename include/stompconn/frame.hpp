@@ -23,6 +23,7 @@ public:
 
     virtual void reserve(std::size_t len) override;
     virtual void write(btpro::tcp::bev& output);
+    virtual btpro::buffer data();
     virtual std::size_t write_all(btpro::socket sock);
 
     std::string str() const;
@@ -114,6 +115,8 @@ public:
     }
 
     void write(bt::bev& output) override;
+
+    btpro::buffer data() override;
 
     std::size_t write_all(btpro::socket sock) override;
 };
