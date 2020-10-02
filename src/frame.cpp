@@ -2,6 +2,7 @@
 #include <stdexcept>
 
 using namespace stompconn;
+using stomptalk::sv;
 
 void frame::append(std::string_view text)
 {
@@ -28,7 +29,7 @@ void frame::write(btpro::tcp::bev& output)
 #ifndef NDEBUG
     std::cout << data_.str() << std::endl << std::endl;
 #endif
-    append_ref(stomptalk::sv("\n\0"));
+    append_ref(sv("\n\0"));
     output.write(std::move(data_));
 }
 
@@ -37,7 +38,7 @@ btpro::buffer frame::data()
 #ifndef NDEBUG
     std::cout << data_.str() << std::endl << std::endl;
 #endif
-    append_ref(stomptalk::sv("\n\0"));
+    append_ref(sv("\n\0"));
 
     btpro::buffer rc;
     rc.append(std::move(data_));
@@ -49,7 +50,7 @@ std::size_t frame::write_all(btpro::socket sock)
 #ifndef NDEBUG
     std::cout << data_.str() << std::endl << std::endl;
 #endif
-    append_ref(stomptalk::sv("\n\0"));
+    append_ref(sv("\n\0"));
 
     std::size_t result = 0;
     do {
@@ -75,7 +76,7 @@ logon::logon(std::string_view host, std::size_t size_reserve)
     if (!host.empty())
         push(stomptalk::header::host(host));
     else
-        push(stomptalk::header::host(stomptalk::sv("/")));
+        push(stomptalk::header::host(sv("/")));
 }
 
 logon::logon(std::string_view host, std::string_view login,
@@ -89,7 +90,7 @@ logon::logon(std::string_view host, std::string_view login,
     else
     {
         using namespace stomptalk::header;
-        push(known_ref<tag::host, std::string_view>(stomptalk::sv("/")));
+        push(known_ref<tag::host, std::string_view>(sv("/")));
     }
     if (!login.empty())
         push(stomptalk::header::login(login));
@@ -106,7 +107,7 @@ logon::logon(std::string_view host, std::string_view login,
     else
     {
         using namespace stomptalk::header;
-        push(known_ref<tag::host, std::string_view>(stomptalk::sv("/")));
+        push(known_ref<tag::host, std::string_view>(sv("/")));
     }
     if (!login.empty())
         push(stomptalk::header::login(login));
@@ -187,16 +188,16 @@ void send::push_palyoad()
         push(stomptalk::header::content_length(payload_size));
 
         // маркер конца хидеров
-        append_ref(stomptalk::sv("\n"));
+        append_ref(sv("\n"));
 
         // добавляем данные
         data_.append(std::move(payload_));
 
         // маркер конца пакета
-        append_ref(stomptalk::sv("\0"));
+        append_ref(sv("\0"));
     }
     else
-        append_ref(stomptalk::sv("\n\0"));
+        append_ref(sv("\n\0"));
 
 #ifndef NDEBUG
     std::cout << data_.str() << std::endl << std::endl;

@@ -22,9 +22,14 @@ public:
     virtual ~frame() override = default;
 
     virtual void reserve(std::size_t len) override;
+
+    // bufferevent api
     virtual void write(btpro::tcp::bev& output);
-    virtual btpro::buffer data();
+
+    // blocking sockets api
     virtual std::size_t write_all(btpro::socket sock);
+
+    virtual btpro::buffer data();
 
     std::string str() const;
 };
@@ -116,9 +121,9 @@ public:
 
     void write(bt::bev& output) override;
 
-    btpro::buffer data() override;
-
     std::size_t write_all(btpro::socket sock) override;
+
+    btpro::buffer data() override;
 };
 
 class ack final
