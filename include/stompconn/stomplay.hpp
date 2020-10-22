@@ -2,7 +2,6 @@
 
 #include "stompconn/frame.hpp"
 #include "stompconn/handler.hpp"
-//#include "stompconn/header_store.hpp"
 #include "stomptalk/parser.hpp"
 #include "stomptalk/hook_base.hpp"
 
@@ -18,6 +17,7 @@ public:
         stomptalk::header::tag::content_type::content_type_id;
     using fun_type = std::function<void(packet)>;
     using header_store = stomptalk::header_store;
+    using text_type = stomptalk::basic_text<char, 20>;
 private:
     stomptalk::parser stomp_{};
     stomptalk::parser_hook hook_{*this};
@@ -31,8 +31,10 @@ private:
     btpro::buffer recv_{};
     fun_type on_logon_fn_{};
     fun_type on_error_fn_{};
-    handler handler_{};
     std::string session_{};
+
+    receipt_handler receipt_{};
+    subscription_handler subscription_{};
 
 #ifndef NDEBUG
     std::string dump_{};
@@ -92,9 +94,11 @@ public:
 
     void logout();
 
-    void add_handler(std::string_view id, fun_type fn);
+    void add_handler(frame& frame, fun_type fn);
 
-    void remove_handler(std::string_view id);
+    void add_handler(subscribe& frame, fun_type fn);
+
+    void unsubscribe(std::string_view id);
 };
 
 } // namespace stompconn

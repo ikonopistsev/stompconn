@@ -1,9 +1,51 @@
 #include "stompconn/handler.hpp"
+#include "btdef/conv/to_hex_text.hpp"
 #include <iostream>
 
 using namespace stompconn;
 
-void handler::exec(iterator i, packet p) noexcept
+
+void receipt_handler::exec(iterator i, packet p) noexcept
+{
+    try
+    {
+        auto& fn = std::get<1>(*i);
+        assert(fn);
+        fn(std::move(p));
+    }
+    catch (...)
+    {   }
+}
+
+std::string_view receipt_handler::create(fn_type fn)
+{
+    hex_text_type hex_id;
+    btdef::conv::to_hex_print(hex_id, ++receipt_seq_id_);
+    auto& i = receipt_.emplace_front(hex_id, std::move(fn));
+    return stomptalk::sv(std::get<0>(i));
+}
+
+bool receipt_handler::call(std::string_view id, packet p) noexcept
+{
+    auto i = receipt_.begin();
+    auto e = receipt_.end();
+    while (i != e)
+    {
+        auto& receipt_id = std::get<0>(*i);
+        if (receipt_id == id)
+        {
+            exec(i, std::move(p));
+            receipt_.erase(i);
+            return true;
+        }
+
+        ++i;
+    }
+
+    return false;
+}
+
+void subscription_handler::exec(iterator i, packet p) noexcept
 {
     try
     {
@@ -16,35 +58,25 @@ void handler::exec(iterator i, packet p) noexcept
     {   }
 }
 
-void handler::create(std::string_view id, fn_type fn)
+std::size_t subscription_handler::create(fn_type fn)
 {
-    assert(fn);
-
-    auto hash = stomptalk::get_hash(id);
-    storage_[hash] = std::move(fn);
+    subscription_[++subscription_seq_id_] = std::move(fn);
+    return subscription_seq_id_;
 }
 
-void handler::remove(std::string_view id)
+void subscription_handler::remove(std::size_t id)
 {
-    storage_.erase(stomptalk::get_hash(id));
+    subscription_.erase(id);
 }
 
-void handler::on_recepit(std::string_view id, packet p) noexcept
+bool subscription_handler::call(std::size_t id, packet p) noexcept
 {
-    auto hash = stomptalk::get_hash(id);
-    auto f = storage_.find(hash);
-    if (f != storage_.end())
+    auto f = subscription_.find(id);
+    if (f != subscription_.end())
     {
         exec(f, std::move(p));
-        storage_.erase(f);
+        return true;
     }
+
+    return false;
 }
-
-void handler::on_message(std::string_view id, packet p) noexcept
-{
-    auto f = storage_.find(stomptalk::get_hash(id));
-    if (f != storage_.end())
-        exec(f, std::move(p));
-}
-
-

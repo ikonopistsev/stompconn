@@ -8,6 +8,7 @@
 namespace stompconn {
 
 class packet;
+class subscription_handler;
 class frame
     : public stomptalk::frame_base
 {
@@ -74,10 +75,7 @@ public:
 
     subscribe(std::string_view destination, fn_type fn);
 
-    fn_type&& fn() noexcept
-    {
-        return std::move(fn_);
-    }
+    void add_subscribe(subscription_handler& handler);
 };
 
 class body_frame

@@ -102,7 +102,7 @@ void connection::exec_unsubscribe(const stomplay::fun_type& fn,
         fn(std::move(p));
 
         // удаляем обработчик подписки
-        stomplay_.remove_handler(id);
+        stomplay_.unsubscribe(id);
     }
     catch (const std::exception& e)
     {
@@ -145,12 +145,7 @@ void connection::unsubscribe(std::string_view id, stomplay::fun_type fn)
     frame frame;
     frame.push(stomptalk::method::unsubscribe());
     frame.push(stomptalk::header::id(id));
-
-    auto rcpt_id = create_receipt_id();
-    auto receipt_id = stomptalk::sv(rcpt_id);
-    frame.push(stomptalk::header::receipt(receipt_id));
-
-    stomplay_.add_handler(receipt_id,
+    stomplay_.add_handler(frame,
         [this , id = std::string(id), receipt_fn = std::move(fn)] (packet p) {
           // вызываем клиентский обработчик подписки
           exec_unsubscribe(receipt_fn, id, std::move(p));
@@ -166,11 +161,7 @@ void connection::logout(stomplay::fun_type fn)
     frame frame;
     frame.push(stomptalk::method::disconnect());
 
-    auto rcpt_id = create_receipt_id();
-    auto receipt_id = stomptalk::sv(rcpt_id);
-    frame.push(stomptalk::header::receipt(receipt_id));
-
-    stomplay_.add_handler(receipt_id, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     frame.write(bev_);
 }
@@ -188,23 +179,8 @@ void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    // генерируем id квитанции
-    auto rcpt_id = create_receipt_id();
-    auto receipt_id = stomptalk::sv(rcpt_id);
-    frame.push(stomptalk::header::receipt(receipt_id));
-
-    auto subs_id = create_subs_id();
-    frame.push(stomptalk::header::id(stomptalk::sv(subs_id)));
-
     // получаем обработчик подписки
-    stomplay_.add_handler(receipt_id,
-        [this, id = subs_id, frame_fn = std::move(frame.fn()),
-            receipt_fn = std::move(fn)] (packet p) {
-            // добавляем id подписки и ее обработчик
-            stomplay_.add_handler(stomptalk::sv(id), frame_fn);
-            // вызываем клиентский обработчик подписки
-            exec_subscribe(receipt_fn, std::move(p));
-    });
+    stomplay_.add_handler(frame, std::move(fn));
 
     frame.write(bev_);
 }
@@ -216,11 +192,7 @@ void connection::send(stompconn::send frame, stomplay::fun_type fn)
 //    if (frame.mask(stomptalk::header::tag::transaction()))
 //        throw std::runtime_error("receipt for transaction");
 
-    auto rcpt_id = create_receipt_id();
-    auto receipt_id = stomptalk::sv(rcpt_id);
-    frame.push(stomptalk::header::receipt(receipt_id));
-
-    stomplay_.add_handler(receipt_id, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     send(std::move(frame));
 }
@@ -229,11 +201,7 @@ void connection::send(stompconn::ack frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    auto rcpt_id = create_receipt_id();
-    auto receipt_id = stomptalk::sv(rcpt_id);
-    frame.push(stomptalk::header::receipt(receipt_id));
-
-    stomplay_.add_handler(receipt_id, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     send(std::move(frame));
 }
@@ -242,11 +210,7 @@ void connection::send(stompconn::nack frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    auto rcpt_id = create_receipt_id();
-    auto receipt_id = stomptalk::sv(rcpt_id);
-    frame.push(stomptalk::header::receipt(receipt_id));
-
-    stomplay_.add_handler(receipt_id, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     send(std::move(frame));
 }
@@ -255,11 +219,7 @@ void connection::send(stompconn::begin frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    auto rcpt_id = create_receipt_id();
-    auto receipt_id = stomptalk::sv(rcpt_id);
-    frame.push(stomptalk::header::receipt(receipt_id));
-
-    stomplay_.add_handler(receipt_id, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     send(std::move(frame));
 }
@@ -268,11 +228,7 @@ void connection::send(stompconn::commit frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    auto rcpt_id = create_receipt_id();
-    auto receipt_id = stomptalk::sv(rcpt_id);
-    frame.push(stomptalk::header::receipt(receipt_id));
-
-    stomplay_.add_handler(receipt_id, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     send(std::move(frame));
 }
@@ -281,11 +237,7 @@ void connection::send(stompconn::abort frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    auto rcpt_id = create_receipt_id();
-    auto receipt_id = stomptalk::sv(rcpt_id);
-    frame.push(stomptalk::header::receipt(receipt_id));
-
-    stomplay_.add_handler(receipt_id, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     send(std::move(frame));
 }

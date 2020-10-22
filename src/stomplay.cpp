@@ -1,5 +1,6 @@
 #include "stompconn/stomplay.hpp"
 #include "stomptalk/antoull.hpp"
+#include "stomptalk/sv.hpp"
 #include <iostream>
 
 using namespace stompconn;
@@ -217,11 +218,11 @@ void stomplay::exec_on_logon() noexcept
     }
 }
 
-void stomplay::exec_on_receipt(std::string_view id) noexcept
+void stomplay::exec_on_receipt(std::string_view text_id) noexcept
 {
     try
     {
-        handler_.on_recepit(id,
+        receipt_.call(text_id,
             packet(header_store_, session_, method_, std::move(recv_)));
     }
     catch (const std::exception& e)
@@ -234,12 +235,16 @@ void stomplay::exec_on_receipt(std::string_view id) noexcept
     }
 }
 
-void stomplay::exec_on_message(std::string_view id) noexcept
+void stomplay::exec_on_message(std::string_view text_id) noexcept
 {
     try
     {
-        handler_.on_message(id,
-            packet(header_store_, session_, method_, std::move(recv_)));
+        auto id = stomptalk::antoull(text_id);
+        if (id > 0)
+        {
+            subscription_.call(static_cast<std::size_t>(id),
+                packet(header_store_, session_, method_, std::move(recv_)));
+        }
     }
     catch (const std::exception& e)
     {
@@ -264,15 +269,24 @@ void stomplay::clear()
 void stomplay::logout()
 {
     session_.clear();
-    handler_.clear();
 }
 
-void stomplay::add_handler(std::string_view id, fun_type fn)
+void stomplay::add_handler(frame& frame, fun_type fn)
 {
-    handler_.create(id, std::move(fn));
+    auto receipt = receipt_.create(std::move(fn));
+    frame.push(stomptalk::header::receipt(receipt));
 }
 
-void stomplay::remove_handler(std::string_view id)
+void stomplay::add_handler(subscribe& frame, fun_type fn)
 {
-    handler_.remove(id);
+    frame.add_subscribe(subscription_);
+    auto receipt = receipt_.create(std::move(fn));
+    frame.push(stomptalk::header::receipt(receipt));
+}
+
+void stomplay::unsubscribe(std::string_view text_id)
+{
+    auto id = stomptalk::antoull(text_id);
+    if (id > 0)
+        subscription_.remove(id);
 }

@@ -1,4 +1,5 @@
 #include "stompconn/frame.hpp"
+#include "stompconn/handler.hpp"
 #include "stomptalk/header_store.hpp"
 #include <stdexcept>
 #include <iostream>
@@ -158,6 +159,12 @@ subscribe::subscribe(std::string_view destination, std::string_view id)
 subscribe::subscribe(std::string_view destination, fn_type fn)
     : subscribe(destination, std::string_view(), std::move(fn))
 {   }
+
+void subscribe::add_subscribe(subscription_handler& handler)
+{
+    auto subs_id = handler.create(std::move(fn_));
+    push(stomptalk::header::id(subs_id));
+}
 
 void body_frame::payload(btpro::buffer payload)
 {
