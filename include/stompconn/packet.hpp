@@ -1,12 +1,14 @@
 #pragma once
 
-#include "stompconn/header_store.hpp"
+#include "stomptalk/header_store.hpp"
 #include "btpro/buffer.hpp"
 
 namespace stompconn {
 
 class packet
 {
+public:
+    using header_store = stomptalk::header_store;
 protected:
     const header_store& header_;
     std::string_view session_{};
@@ -72,6 +74,11 @@ public:
     btpro::buffer_ref payload() const noexcept
     {
         return payload_;
+    }
+
+    void copyout(btpro::buffer& other)
+    {
+        other.append(std::move(payload_));
     }
 
     btpro::buffer_ref data() const noexcept

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "stompconn/packet.hpp"
+#include "stomptalk/basic_text.hpp"
 #include <functional>
 
 namespace stompconn {
@@ -9,7 +10,7 @@ class handler
 {
 public:
     using fn_type = std::function<void(packet)>;
-    using storage_type = std::unordered_map<std::string, fn_type>;
+    using storage_type = std::unordered_map<std::size_t, fn_type>;
     using iterator = storage_type::iterator;
 
     handler() = default;
@@ -20,15 +21,15 @@ private:
     void exec(iterator i, packet p) noexcept;
 
 public:
-    void create(const std::string& id, fn_type fn);
+    void create(std::string_view id, fn_type fn);
 
-    void remove(const std::string& id);
+    void remove(std::string_view id);
 
-    void on_recepit(const std::string& id, packet p) noexcept;
+    void on_recepit(std::string_view id, packet p) noexcept;
 
-    void on_message(const std::string& id, packet p) noexcept;
+    void on_message(std::string_view id, packet p) noexcept;
 
-    void on_error(const std::string& id, packet p) noexcept
+    void on_error(std::string_view id, packet p) noexcept
     {
         on_message(id, std::move(p));
     }

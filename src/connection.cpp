@@ -1,4 +1,5 @@
 #include "stompconn/connection.hpp"
+#include <iostream>
 
 using namespace stompconn;
 
@@ -7,7 +8,7 @@ void connection::do_evcb(short what) noexcept
     if (what == BEV_EVENT_CONNECTED)
     {
         bev_.enable(EV_READ);
-        ++connection_id_;
+        update_connection_id();
         on_connect_fun_();
     }
     else
@@ -136,25 +137,16 @@ void connection::connect(btpro::dns_ref dns, const std::string& host, int port)
     bev_.connect(dns, host, port);
 }
 
-void connection::logon(stompconn::logon frame, stomplay::fun_type fn)
-{
-    send(std::move(frame), std::move(fn));
-}
-
-void connection::subscribe(stompconn::subscribe frame, stomplay::fun_type fn)
-{
-    send(std::move(frame), std::move(fn));
-}
-
 void connection::unsubscribe(std::string_view id, stomplay::fun_type fn)
 {
     assert(fn);
 
-    auto receipt_id = create_receipt_id();
-
     frame frame;
-    frame.push(stomptalk::method::tag::unsubscribe());
+    frame.push(stomptalk::method::unsubscribe());
     frame.push(stomptalk::header::id(id));
+
+    auto rcpt_id = create_receipt_id();
+    auto receipt_id = stomptalk::sv(rcpt_id);
     frame.push(stomptalk::header::receipt(receipt_id));
 
     stomplay_.add_handler(receipt_id,
@@ -170,10 +162,11 @@ void connection::logout(stomplay::fun_type fn)
 {
     assert(fn);
 
-    auto receipt_id = create_receipt_id();
-
     frame frame;
-    frame.push(stomptalk::method::tag::disconnect());
+    frame.push(stomptalk::method::disconnect());
+
+    auto rcpt_id = create_receipt_id();
+    auto receipt_id = stomptalk::sv(rcpt_id);
     frame.push(stomptalk::header::receipt(receipt_id));
 
     stomplay_.add_handler(receipt_id, std::move(fn));
@@ -195,25 +188,19 @@ void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
     assert(fn);
 
     // генерируем id квитанции
-    auto receipt_id = create_receipt_id();
+    auto rcpt_id = create_receipt_id();
+    auto receipt_id = stomptalk::sv(rcpt_id);
     frame.push(stomptalk::header::receipt(receipt_id));
 
-    // получаем id подписки
-    // если нет - создаем новый
-    // и добавляем во фрейм
-    auto subs_id = std::move(frame.id());
-    if (subs_id.empty())
-    {
-        subs_id = create_subs_id();
-        frame.push(stomptalk::header::id(subs_id));
-    }
+    auto subs_id = create_subs_id();
+    frame.push(stomptalk::header::id(stomptalk::sv(subs_id)));
 
     // получаем обработчик подписки
     stomplay_.add_handler(receipt_id,
-        [this, id = std::move(subs_id), frame_fn = frame.fn(),
+        [this, id = subs_id, frame_fn = std::move(frame.fn()),
             receipt_fn = std::move(fn)] (packet p) {
             // добавляем id подписки и ее обработчик
-            stomplay_.add_handler(id, frame_fn);
+            stomplay_.add_handler(stomptalk::sv(id), frame_fn);
             // вызываем клиентский обработчик подписки
             exec_subscribe(receipt_fn, std::move(p));
     });
@@ -225,10 +212,11 @@ void connection::send(stompconn::send frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    if (frame.mask(stomptalk::header::tag::transaction()))
-        throw std::runtime_error("receipt for transaction");
+//    if (frame.mask(stomptalk::header::tag::transaction()))
+//        throw std::runtime_error("receipt for transaction");
 
-    auto receipt_id = create_receipt_id();
+    auto rcpt_id = create_receipt_id();
+    auto receipt_id = stomptalk::sv(rcpt_id);
     frame.push(stomptalk::header::receipt(receipt_id));
 
     stomplay_.add_handler(receipt_id, std::move(fn));
@@ -240,7 +228,8 @@ void connection::send(stompconn::ack frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    auto receipt_id = create_receipt_id();
+    auto rcpt_id = create_receipt_id();
+    auto receipt_id = stomptalk::sv(rcpt_id);
     frame.push(stomptalk::header::receipt(receipt_id));
 
     stomplay_.add_handler(receipt_id, std::move(fn));
@@ -252,7 +241,8 @@ void connection::send(stompconn::nack frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    auto receipt_id = create_receipt_id();
+    auto rcpt_id = create_receipt_id();
+    auto receipt_id = stomptalk::sv(rcpt_id);
     frame.push(stomptalk::header::receipt(receipt_id));
 
     stomplay_.add_handler(receipt_id, std::move(fn));
@@ -264,7 +254,8 @@ void connection::send(stompconn::begin frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    auto receipt_id = create_receipt_id();
+    auto rcpt_id = create_receipt_id();
+    auto receipt_id = stomptalk::sv(rcpt_id);
     frame.push(stomptalk::header::receipt(receipt_id));
 
     stomplay_.add_handler(receipt_id, std::move(fn));
@@ -276,7 +267,8 @@ void connection::send(stompconn::commit frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    auto receipt_id = create_receipt_id();
+    auto rcpt_id = create_receipt_id();
+    auto receipt_id = stomptalk::sv(rcpt_id);
     frame.push(stomptalk::header::receipt(receipt_id));
 
     stomplay_.add_handler(receipt_id, std::move(fn));
@@ -288,7 +280,8 @@ void connection::send(stompconn::abort frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    auto receipt_id = create_receipt_id();
+    auto rcpt_id = create_receipt_id();
+    auto receipt_id = stomptalk::sv(rcpt_id);
     frame.push(stomptalk::header::receipt(receipt_id));
 
     stomplay_.add_handler(receipt_id, std::move(fn));
@@ -296,30 +289,10 @@ void connection::send(stompconn::abort frame, stomplay::fun_type fn)
     send(std::move(frame));
 }
 
-void connection::ack(stompconn::ack frame, stomplay::fun_type fn)
-{
-    send(std::move(frame), std::move(fn));
-}
-
-void connection::nack(stompconn::nack frame, stomplay::fun_type fn)
-{
-    send(std::move(frame), std::move(fn));
-}
-
-void connection::begin(stompconn::begin frame, stomplay::fun_type fn)
-{
-    send(std::move(frame), std::move(fn));
-}
-
 void connection::commit(std::string_view transaction_id, stomplay::fun_type fn)
 {
     assert(fn);
     send(stompconn::commit(transaction_id), std::move(fn));
-}
-
-void connection::commit(stompconn::commit frame, stomplay::fun_type fn)
-{
-    send(std::move(frame), std::move(fn));
 }
 
 void connection::commit(std::string_view transaction_id)
@@ -334,11 +307,6 @@ void connection::abort(std::string_view transaction_id, stomplay::fun_type fn)
     send(stompconn::abort(transaction_id), std::move(fn));
 }
 
-void connection::abort(stompconn::abort frame, stomplay::fun_type fn)
-{
-    send(std::move(frame), std::move(fn));
-}
-
 void connection::abort(std::string_view transaction_id)
 {
     send(stompconn::abort(transaction_id));
@@ -349,71 +317,59 @@ void connection::on_error(stomplay::fun_type fn)
     stomplay_.on_error(std::move(fn));
 }
 
-btdef::text trim00(const btdef::text& text) noexcept
-{
-    auto b = text.begin();
-    auto e = text.end();
-    while ((*b == '0') && (b < e))
-    { ++b; }
-    return btdef::text(b, std::distance(b, e));
-}
-
 // число минут с 2020 года
-std::string startup_hex_minutes_20201001() noexcept
+connection::text_id_type startup_hex_minutes_20201001() noexcept
 {
     using namespace std::chrono;
     constexpr auto t0 = 1577836800u / 60u;
     auto t = system_clock::now();
     auto c = duration_cast<minutes>(t.time_since_epoch()).count();
     auto val = static_cast<std::uint64_t>(c - t0);
-    auto ses = trim00(btdef::to_hex(val));
-    return std::string(ses.data(), ses.size());
-}
 
-// последовательный номер сообщения
-std::string connection::message_seq_id() noexcept
-{
-    auto text = trim00(btdef::to_hex(
-        static_cast<std::uint64_t>(++message_seq_id_)));
-    return std::string(text.data(), text.size());
-}
-
-// последовательный номер сообщения
-std::string connection::connection_seq_id() noexcept
-{
-    auto text = trim00(btdef::to_hex(
-        static_cast<std::uint64_t>(connection_id_)));
-    return std::string(text.data(), text.size());
-}
-
-std::string connection::create_id(char L) noexcept
-{
-    static const auto time_const = startup_hex_minutes_20201001();
-    auto msg_id = message_seq_id();
-    auto conn_id = connection_seq_id();
-    std::string rc;
-    auto sz = msg_id.size() + conn_id.size() + time_const.size() + 2;
-    if (sz >= rc.capacity())
-        rc.reserve(sz);
-    rc = msg_id;
-    rc += L;
-    rc += conn_id;
-    rc += '@';
-    rc += time_const;
+    connection::text_id_type rc;
+    btdef::conv::to_hex_print(rc, static_cast<std::uint64_t>(val));
     return rc;
 }
 
-std::string connection::create_subs_id() noexcept
+// последовательный номер сообщения
+connection::hex_text_type connection::message_seq_id() noexcept
+{
+    hex_text_type rc;
+    btdef::conv::to_hex_print(rc,
+        static_cast<std::uint64_t>(++message_seq_id_));
+    return rc;
+}
+
+// последовательный номер сообщения
+void connection::update_connection_id() noexcept
+{
+    static const auto time = startup_hex_minutes_20201001();
+    btdef::conv::to_hex_print(connection_id_,
+        static_cast<std::uint64_t>(++connection_seq_id_));
+    connection_id_ += '@';
+    connection_id_ += time;
+}
+
+connection::text_id_type connection::create_id(char ch) noexcept
+{
+    text_id_type rc;
+    rc = message_seq_id();
+    rc += ch;
+    rc += connection_id_;
+    return rc;
+}
+
+connection::text_id_type connection::create_subs_id() noexcept
 {
     return create_id('S');
 }
 
-std::string connection::create_receipt_id() noexcept
+connection::text_id_type connection::create_receipt_id() noexcept
 {
     return create_id('R');
 }
 
-std::string connection::create_message_id() noexcept
+connection::text_id_type connection::create_message_id() noexcept
 {
     return create_id('M');
 }

@@ -1,9 +1,10 @@
 #include "stompconn/stomplay.hpp"
 #include "stomptalk/antoull.hpp"
+#include <iostream>
 
 using namespace stompconn;
 
-void stomplay::on_frame(stomptalk::parser_hook& hook) noexcept
+void stomplay::on_frame(stomptalk::parser_hook& hook, const char*) noexcept
 {
     try
     {
@@ -89,7 +90,7 @@ void stomplay::on_hdr_val(stomptalk::parser_hook& hook,
 
         auto num_id = header_.num_id();
         if (num_id != num_id::none)
-            header_store_.set(num_id, current_header_, val);
+            header_store_.set(num_id, header_.hash(), current_header_, val);
         else
             header_store_.set(current_header_, val);
 
@@ -135,7 +136,7 @@ void stomplay::on_body(stomptalk::parser_hook& hook,
     hook.generic_error();
 }
 
-void stomplay::on_frame_end(stomptalk::parser_hook&) noexcept
+void stomplay::on_frame_end(stomptalk::parser_hook&, const char*) noexcept
 {
 #ifndef NDEBUG
     std::cout << "<< " <<  dump_ << std::endl << std::endl;
@@ -220,7 +221,7 @@ void stomplay::exec_on_receipt(std::string_view id) noexcept
 {
     try
     {
-        handler_.on_recepit(std::string(id),
+        handler_.on_recepit(id,
             packet(header_store_, session_, method_, std::move(recv_)));
     }
     catch (const std::exception& e)
@@ -237,7 +238,7 @@ void stomplay::exec_on_message(std::string_view id) noexcept
 {
     try
     {
-        handler_.on_message(std::string(id),
+        handler_.on_message(id,
             packet(header_store_, session_, method_, std::move(recv_)));
     }
     catch (const std::exception& e)
@@ -266,12 +267,12 @@ void stomplay::logout()
     handler_.clear();
 }
 
-void stomplay::add_handler(const std::string& id, fun_type fn)
+void stomplay::add_handler(std::string_view id, fun_type fn)
 {
     handler_.create(id, std::move(fn));
 }
 
-void stomplay::remove_handler(const std::string& id)
+void stomplay::remove_handler(std::string_view id)
 {
     handler_.remove(id);
 }

@@ -1,50 +1,61 @@
 #pragma once
 
-#include "stompconn/packet.hpp"
-#include "stomptalk/frame.hpp"
+#include "stomptalk/frame_base.hpp"
+#include "stomptalk/header_store.hpp"
+#include "btpro/buffer.hpp"
 #include "btpro/tcp/bev.hpp"
 
 namespace stompconn {
 
+class packet;
 class frame
-    : public stomptalk::frame::base
+    : public stomptalk::frame_base
 {
 protected:
     btpro::buffer data_{};
-
-    virtual void append(std::string_view text) override;
-    virtual void append_ref(std::string_view text) override;
-    virtual void append(btpro::buffer buf);
+    constexpr static std::size_t holder_size = 0;
 
 public:
     frame() = default;
+    virtual ~frame() = default;
+
     frame(frame&&) = default;
-    virtual ~frame() override = default;
+    frame& operator=(frame&&) = default;
 
-    virtual void reserve(std::size_t len) override;
+    // all non ref
+    void push_header(std::string_view key, std::string_view value) override;
+    // all ref
+    void push_header_ref(std::string_view prepared_key_value) override;
+    // key ref, val non ref
+    void push_header_val(std::string_view prepared_key,
+                         std::string_view value) override;
 
-    // bufferevent api
-    virtual void write(btpro::tcp::bev& output);
+    void push_method(std::string_view method) override;
 
-    // blocking sockets api
-    virtual std::size_t write_all(btpro::socket sock);
+    // complete frame before write
+    virtual void complete();
+
+    virtual int write(btpro::socket sock);
+
+    virtual void write(btpro::tcp::bev& bev);
+
+    virtual void copyout(btpro::tcp::bev& bev);
 
     virtual btpro::buffer data();
 
-    std::string str() const;
+    virtual std::string str() const;
 };
 
 class logon final
     : public frame
 {
 public:
-    explicit logon(std::string_view host, std::size_t size_reserve = 320);
-
     logon(std::string_view host, std::string_view login,
-        std::size_t size_reserve = 320);
+        std::string_view passcode);
 
-    logon(std::string_view host, std::string_view login,
-        std::string_view passcode, std::size_t size_reserve = 320);
+    logon(std::string_view host, std::string_view login);
+
+    logon(std::string_view host);
 };
 
 class subscribe final
@@ -54,116 +65,118 @@ public:
     typedef std::function<void(packet)> fn_type;
 
 private:
-    std::string id_{};
     fn_type fn_{};
 
 public:
-    subscribe(std::string_view destination,
-              std::size_t size_reserve = 320);
+    subscribe(std::string_view destination, std::string_view id, fn_type fn);
 
-    subscribe(std::string_view destination,
-              fn_type fn,
-              std::size_t size_reserve = 320);
+    subscribe(std::string_view destination, std::string_view id);
 
-    subscribe(std::string_view destination,
-              std::string_view id,
-              fn_type fn,
-              std::size_t size_reserve = 320);
+    subscribe(std::string_view destination, fn_type fn);
 
-    template<class K, class V>
-    void push(stomptalk::header::known<K, V> hdr)
+    fn_type&& fn() noexcept
     {
-        frame::push(hdr);
+        return std::move(fn_);
     }
-
-    template<class K, class V>
-    void push(stomptalk::header::known_ref<K, V> hdr)
-    {
-        frame::push(hdr);
-    }
-
-    template<class V>
-    void push(stomptalk::header::known<stomptalk::header::tag::id, V> hdr)
-    {
-        // сохраняем кастомный id
-        id_ = hdr.value();
-        frame::push(hdr);
-    }
-
-    void set(fn_type fn);
-
-    const fn_type& fn() const noexcept;
-
-    fn_type&& fn() noexcept;
-
-    const std::string& id() const noexcept;
-
-    std::string&& id() noexcept;
 };
 
-class send final
+class body_frame
     : public frame
 {
-private:
+protected:
     btpro::buffer payload_{};
 
-    void push_palyoad();
-
 public:
-    send(std::string_view destination, std::size_t size_reserve = 320);
+    body_frame() = default;
+    body_frame(body_frame&&) = default;
+    body_frame& operator=(body_frame&&) = default;
+    virtual ~body_frame() = default;
 
     void payload(btpro::buffer payload);
 
-    std::size_t payload_size() const noexcept
-    {
-        return payload_.size();
-    }
+    void push_payload(btpro::buffer payload);
 
-    void write(bt::bev& output) override;
+    void push_payload(const char *data, std::size_t size);
 
-    std::size_t write_all(btpro::socket sock) override;
+    virtual void complete() override;
 
-    btpro::buffer data() override;
+    virtual std::string str() const override;
 };
 
-class ack final
+class ack
     : public frame
 {
 public:
-    ack(std::string_view ack_id, std::size_t size_reserve = 64);
-    ack(const packet& p);
+    ack(std::string_view ack_id);
 };
 
-class nack final
+class nack
     : public frame
 {
 public:
-    nack(std::string_view ack_id, std::size_t size_reserve = 64);
-    nack(const packet& p);
+    nack(std::string_view ack_id);
 };
 
-class begin final
+class begin
     : public frame
 {
 public:
-    begin(std::string_view transaction_id, std::size_t size_reserve = 64);
-    begin(std::size_t transaction_id, std::size_t size_reserve = 64);
+    begin(std::string_view transaction_id);
+    begin(std::size_t transaction_id);
 };
 
-class commit final
+class commit
     : public frame
 {
 public:
-    commit(std::string_view transaction_id, std::size_t size_reserve = 64);
-    commit(const packet& p);
+    commit(std::string_view transaction_id);
 };
 
-class abort final
+class abort
     : public frame
 {
 public:
-    abort(std::string_view transaction_id, std::size_t size_reserve = 64);
-    abort(const packet& p);
+    abort(std::string_view transaction_id);
+};
+
+class receipt
+    : public frame
+{
+public:
+    receipt(std::string_view receipt_id);
+};
+
+class connected
+    : public frame
+{
+public:
+    connected(std::string_view session, std::string_view server_version);
+    connected(std::string_view session);
+};
+
+class send
+    : public body_frame
+{
+public:
+    send(std::string_view destination);
+};
+
+class error
+    : public body_frame
+{
+public:
+    error(std::string_view message, std::string_view receipt_id);
+    error(std::string_view message);
+};
+
+class message
+    : public body_frame
+{
+public:
+    message(std::string_view destination,
+            std::string_view subscrition, std::string_view message_id);
+    message(std::string_view destination,
+            std::string_view subscrition, std::size_t message_id);
 };
 
 } // namespace stompconn

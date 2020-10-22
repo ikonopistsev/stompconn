@@ -2,7 +2,7 @@
 
 #include "stompconn/frame.hpp"
 #include "stompconn/handler.hpp"
-#include "stompconn/header_store.hpp"
+//#include "stompconn/header_store.hpp"
 #include "stomptalk/parser.hpp"
 #include "stomptalk/hook_base.hpp"
 
@@ -17,7 +17,7 @@ public:
     using content_type_id =
         stomptalk::header::tag::content_type::content_type_id;
     using fun_type = std::function<void(packet)>;
-
+    using header_store = stomptalk::header_store;
 private:
     stomptalk::parser stomp_{};
     stomptalk::parser_hook hook_{*this};
@@ -38,7 +38,7 @@ private:
     std::string dump_{};
 #endif
 
-    virtual void on_frame(stomptalk::parser_hook&) noexcept override;
+    virtual void on_frame(stomptalk::parser_hook&, const char*) noexcept override;
 
     virtual void on_method(stomptalk::parser_hook& hook,
         std::string_view method) noexcept override;
@@ -52,7 +52,7 @@ private:
     virtual void on_body(stomptalk::parser_hook& hook,
         const void* data, std::size_t size) noexcept override;
 
-    virtual void on_frame_end(stomptalk::parser_hook&) noexcept override;
+    virtual void on_frame_end(stomptalk::parser_hook&, const char*) noexcept override;
 
     void exec_on_error() noexcept;
     void exec_on_logon() noexcept;
@@ -92,9 +92,9 @@ public:
 
     void logout();
 
-    void add_handler(const std::string& id, fun_type fn);
+    void add_handler(std::string_view id, fun_type fn);
 
-    void remove_handler(const std::string& id);
+    void remove_handler(std::string_view id);
 };
 
 } // namespace stompconn

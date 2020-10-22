@@ -1,4 +1,5 @@
 #include "stompconn/handler.hpp"
+#include <iostream>
 
 using namespace stompconn;
 
@@ -15,21 +16,23 @@ void handler::exec(iterator i, packet p) noexcept
     {   }
 }
 
-void handler::create(const std::string& id, fn_type fn)
+void handler::create(std::string_view id, fn_type fn)
 {
     assert(fn);
 
-    storage_[id] = std::move(fn);
+    auto hash = stomptalk::get_hash(id);
+    storage_[hash] = std::move(fn);
 }
 
-void handler::remove(const std::string& id)
+void handler::remove(std::string_view id)
 {
-    storage_.erase(id);
+    storage_.erase(stomptalk::get_hash(id));
 }
 
-void handler::on_recepit(const std::string& receipt_id, packet p) noexcept
+void handler::on_recepit(std::string_view id, packet p) noexcept
 {
-    auto f = storage_.find(receipt_id);
+    auto hash = stomptalk::get_hash(id);
+    auto f = storage_.find(hash);
     if (f != storage_.end())
     {
         exec(f, std::move(p));
@@ -37,9 +40,9 @@ void handler::on_recepit(const std::string& receipt_id, packet p) noexcept
     }
 }
 
-void handler::on_message(const std::string &id, packet p) noexcept
+void handler::on_message(std::string_view id, packet p) noexcept
 {
-    auto f = storage_.find(id);
+    auto f = storage_.find(stomptalk::get_hash(id));
     if (f != storage_.end())
         exec(f, std::move(p));
 }

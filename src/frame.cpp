@@ -1,66 +1,86 @@
 #include "stompconn/frame.hpp"
+#include "stomptalk/header_store.hpp"
 #include <stdexcept>
+#include <iostream>
 
 using namespace stompconn;
-using stomptalk::sv;
+using namespace std::literals;
 
-void frame::append(std::string_view text)
+void frame::push_header(std::string_view key, std::string_view value)
 {
-    data_.append(text.data(), text.size());
+    if (key.empty())
+        throw std::logic_error("header key empty");
+
+    if (value.empty())
+        throw std::logic_error("frame header value empty");
+
+    data_.append("\n"sv);
+    data_.append(key);
+    data_.append(":"sv);
+    data_.append(value);
 }
 
-void frame::append_ref(std::string_view text)
+// all ref
+void frame::push_header_ref(std::string_view prepared_key_value)
 {
-    data_.append_ref(text.data(), text.size());
+    assert(!prepared_key_value.empty());
+
+    data_.append(prepared_key_value);
 }
 
-void frame::append(btpro::buffer buf)
+// key ref, val non ref
+void frame::push_header_val(std::string_view prepared_key,
+                            std::string_view value)
 {
-    data_.append(std::move(buf));
+    assert(!prepared_key.empty());
+
+    if (value.empty())
+        throw std::logic_error("frame header value empty");
+
+    data_.append(prepared_key);
+    data_.append(value);
 }
 
-void frame::reserve(std::size_t len)
+void frame::push_method(std::string_view method)
 {
-    data_.expand(len);
+    if (method.empty())
+        throw std::logic_error("frame method empty");
+
+    data_.append(method.data(), method.size());
 }
 
-void frame::write(btpro::tcp::bev& output)
+void frame::complete()
 {
 #ifndef NDEBUG
-    std::cout << data_.str() << std::endl << std::endl;
+    std::cout << str() << std::endl << std::endl;
 #endif
-    append_ref(sv("\n\0"));
-    output.write(std::move(data_));
+    data_.append("\n\n\0"sv);
+}
+
+int frame::write(btpro::socket sock)
+{
+    complete();
+
+    return data_.write(sock.fd());
+}
+
+void frame::write(btpro::tcp::bev& bev)
+{
+    complete();
+
+    bev.write(std::move(data_));
+}
+
+void frame::copyout(btpro::tcp::bev&)
+{
+    complete();
 }
 
 btpro::buffer frame::data()
 {
-#ifndef NDEBUG
-    std::cout << data_.str() << std::endl << std::endl;
-#endif
-    append_ref(sv("\n\0"));
+    complete();
 
-    btpro::buffer rc;
-    rc.append(std::move(data_));
-    return rc;
-}
-
-std::size_t frame::write_all(btpro::socket sock)
-{
-#ifndef NDEBUG
-    std::cout << data_.str() << std::endl << std::endl;
-#endif
-    append_ref(sv("\n\0"));
-
-    std::size_t result = 0;
-    do {
-        auto rc = data_.write(sock);
-        if (btpro::code::fail == rc)
-            throw std::runtime_error("frame write");
-        result += static_cast<std::size_t>(rc);
-    } while (!data_.empty());
-
-    return result;
+    return btpro::buffer(std::move(data_));
 }
 
 std::string frame::str() const
@@ -68,252 +88,243 @@ std::string frame::str() const
     return data_.str();
 }
 
-logon::logon(std::string_view host, std::size_t size_reserve)
-{
-    reserve(size_reserve);
-    push(stomptalk::method::tag::connect());
-    push(stomptalk::header::ver12());
-    if (!host.empty())
-        push(stomptalk::header::host(host));
-    else
-        push(stomptalk::header::host(sv("/")));
-}
+//void frame::write(btpro::socket sock)
+//{
+//    auto& frame = get();
+//    frame.complete();
 
-logon::logon(std::string_view host, std::string_view login,
-    std::size_t size_reserve)
-{
-    reserve(size_reserve);
-    push(stomptalk::method::tag::connect());
-    push(stomptalk::header::ver12());
-    if (!host.empty())
-        push(stomptalk::header::host(host));
-    else
-    {
-        using namespace stomptalk::header;
-        push(known_ref<tag::host, std::string_view>(sv("/")));
-    }
-    if (!login.empty())
-        push(stomptalk::header::login(login));
-}
+//#ifndef NDEBUG
+//    std::cout << str() << std::endl << std::endl;
+//#endif
 
-logon::logon(std::string_view host, std::string_view login,
-    std::string_view passcode, std::size_t size_reserve)
+//    auto& iv = frame.layout();
+
+//    mmsghdr h = {};
+//    h.msg_hdr.msg_iov = iv.begin();
+//    h.msg_hdr.msg_iovlen= iv.size();
+
+//    auto rc = sendmmsg(sock, &h, 1, 0);
+//    if (-1 == rc)
+//    {
+//        throw std::system_error(
+//            std::error_code(errno, std::generic_category()),
+//                            "sendmmsg");
+//    }
+
+//    frame.drain(h.msg_len);
+//}
+
+logon::logon(std::string_view host,
+    std::string_view login, std::string_view passcode)
 {
-    reserve(size_reserve);
-    push(stomptalk::method::tag::connect());
-    push(stomptalk::header::ver12());
-    if (!host.empty())
-        push(stomptalk::header::host(host));
-    else
-    {
-        using namespace stomptalk::header;
-        push(known_ref<tag::host, std::string_view>(sv("/")));
-    }
+    push(stomptalk::method::connect());
+    push(stomptalk::header::accept_version_v12());
+
+    if (host.empty())
+        host = "/"sv;
+    push(stomptalk::header::host(host));
+
     if (!login.empty())
         push(stomptalk::header::login(login));
     if (!passcode.empty())
         push(stomptalk::header::passcode(passcode));
 }
 
-subscribe::subscribe(std::string_view destination,
-          std::size_t size_reserve)
-{
-    reserve(size_reserve);
-    frame::push(stomptalk::method::tag::subscribe());
-    push(stomptalk::header::destination(destination));
-}
+logon::logon(std::string_view host, std::string_view login)
+    : logon(host, login, std::string_view())
+{   }
+
+logon::logon(std::string_view host)
+    : logon(host, std::string_view(), std::string_view())
+{   }
 
 subscribe::subscribe(std::string_view destination,
-    fn_type fn, std::size_t size_reserve)
+    std::string_view id, fn_type fn)
     : fn_(std::move(fn))
 {
-    reserve(size_reserve);
-    frame::push(stomptalk::method::tag::subscribe());
+    if (destination.empty())
+        throw std::runtime_error("destination empty");
+
+    push(stomptalk::method::subscribe());
     push(stomptalk::header::destination(destination));
-}
+    if (!id.empty())
+        push(stomptalk::header::id(id));
+} 
 
-subscribe::subscribe(std::string_view destination,
-          std::string_view id, fn_type fn, std::size_t size_reserve)
-    : id_(id)
-    , fn_(std::move(fn))
+subscribe::subscribe(std::string_view destination, std::string_view id)
+    : subscribe(destination, id, fn_type())
+{   }
+
+subscribe::subscribe(std::string_view destination, fn_type fn)
+    : subscribe(destination, std::string_view(), std::move(fn))
+{   }
+
+void body_frame::payload(btpro::buffer payload)
 {
-    reserve(size_reserve);
-    frame::push(stomptalk::method::tag::subscribe());
-    push(stomptalk::header::destination(destination));
+    payload_ = std::move(payload);
 }
 
-void subscribe::set(fn_type fn)
-{
-    fn_ = std::move(fn);
-}
-
-const subscribe::fn_type& subscribe::fn() const noexcept
-{
-    return fn_;
-}
-
-subscribe::fn_type&& subscribe::fn() noexcept
-{
-    return std::move(fn_);
-}
-
-const std::string& subscribe::id() const noexcept
-{
-    return id_;
-}
-
-std::string&& subscribe::id() noexcept
-{
-    return std::move(id_);
-}
-
-send::send(std::string_view destination, std::size_t size_reserve)
-{
-    data_.expand(size_reserve);
-    push(stomptalk::method::tag::send());
-    push(stomptalk::header::destination(destination));
-}
-
-void send::payload(btpro::buffer payload)
+void body_frame::push_payload(btpro::buffer payload)
 {
     payload_.append(std::move(payload));
 }
 
-void send::push_palyoad()
+void body_frame::push_payload(const char *data, std::size_t size)
 {
-    auto payload_size = payload_.size();
-    if (payload_size)
+    payload_.append(data, size);
+}
+
+void body_frame::complete()
+{
+    auto size = payload_.size();
+    if (size)
     {
-        // выставляем размер данных
-        push(stomptalk::header::content_length(payload_size));
-
-        // маркер конца хидеров
-        append_ref(sv("\n"));
-
-        // добавляем данные
-        data_.append(std::move(payload_));
-
-        // маркер конца пакета
-        append_ref(sv("\0"));
-    }
-    else
-        append_ref(sv("\n\0"));
+        // дописываем размер
+        push(stomptalk::header::content_length(size));
 
 #ifndef NDEBUG
-    std::cout << data_.str() << std::endl << std::endl;
+        std::cout << str() << std::endl;
 #endif
+        // дописываем разделитель хидеров и боди
+        data_.append("\n\n"sv);
 
+        // дописываем протокольный ноль
+        payload_.append("\0"sv);
+
+        // добавляем боди
+        data_.append(std::move(payload_));
+    }
+    else
+        frame::complete();
 }
 
-void send::write(bt::bev& output)
+std::string body_frame::str() const
 {
-    push_palyoad();
-    output.write(std::move(data_));
-}
-
-btpro::buffer send::data()
-{
-    push_palyoad();
-
-    btpro::buffer rc;
-    rc.append(std::move(data_));
+    auto rc = data_.str();
+    auto size = payload_.size();
+    if (size)
+    {
+        rc += "\n\n< "sv;
+        if (size > 32)
+        {
+            rc += payload_.str().substr(0, 8);
+            rc += " size="sv;
+            rc += std::to_string(size);
+        }
+        else
+            rc += payload_.str();
+        rc += " >\n"sv;
+    }
     return rc;
 }
 
-std::size_t send::write_all(btpro::socket sock)
+send::send(std::string_view destination)
 {
-    push_palyoad();
+    if (destination.empty())
+        throw std::runtime_error("destination empty");
 
-    std::size_t result = 0;
-    do {
-        auto rc = data_.write(sock);
-        if (btpro::code::fail == rc)
-            throw std::runtime_error("frame write");
-        result += static_cast<std::size_t>(rc);
-    } while (!data_.empty());
-
-    return result;
+    push(stomptalk::method::send());
+    push(stomptalk::header::destination(destination));
 }
 
-ack::ack(std::string_view ack_id, std::size_t size_reserve)
+ack::ack(std::string_view ack_id)
 {
-    if (ack_id.empty())
-        throw std::runtime_error("ack id empty");
-
-    reserve(size_reserve);
-    frame::push(stomptalk::method::tag::ack());
+    push(stomptalk::method::ack());
     push(stomptalk::header::id(ack_id));
 }
 
-ack::ack(const packet& p)
-    : ack(p.get(stomptalk::header::tag::ack()))
+nack::nack(std::string_view ack_id)
 {
-// not working with rabbitmq
-//    auto t = p.get(stomptalk::header::tag::transaction());
-//    if (!t.empty())
-//        push(stomptalk::header::transaction(t));
-}
-
-nack::nack(std::string_view ack_id, std::size_t size_reserve)
-{
-    if (ack_id.empty())
-        throw std::runtime_error("nack id empty");
-
-    reserve(size_reserve);
-    frame::push(stomptalk::method::tag::nack());
+    push(stomptalk::method::nack());
     push(stomptalk::header::id(ack_id));
 }
 
-nack::nack(const packet& p)
-    : nack(p.get(stomptalk::header::tag::message_id()))
-{
-// not working with rabbitmq
-//    auto t = p.get(stomptalk::header::tag::transaction());
-//    if (!t.empty())
-//        push(stomptalk::header::transaction(t));
-}
-
-begin::begin(std::string_view transaction_id, std::size_t size_reserve)
+begin::begin(std::string_view transaction_id)
 {
     if (transaction_id.empty())
         throw std::runtime_error("transaction id empty");
 
-    reserve(size_reserve);
-    frame::push(stomptalk::method::tag::begin());
+    push(stomptalk::method::begin());
     push(stomptalk::header::transaction(transaction_id));
 }
 
-begin::begin(std::size_t transaction_id, std::size_t size_reserve)
-{
-    reserve(size_reserve);
-    frame::push(stomptalk::method::tag::begin());
-    push(stomptalk::header::transaction(transaction_id));
-}
-
-commit::commit(std::string_view transaction_id, std::size_t size_reserve)
-{
-    if (transaction_id.empty())
-        throw std::runtime_error("transaction id empty");
-
-    reserve(size_reserve);
-    frame::push(stomptalk::method::tag::commit());
-    push(stomptalk::header::transaction(transaction_id));
-}
-
-commit::commit(const packet& p)
-    : commit(p.get(stomptalk::header::tag::transaction()))
+begin::begin(std::size_t transaction_id)
+    : begin(std::to_string(transaction_id))
 {   }
 
-abort::abort(std::string_view transaction_id, std::size_t size_reserve)
+commit::commit(std::string_view transaction_id)
 {
     if (transaction_id.empty())
         throw std::runtime_error("transaction id empty");
 
-    reserve(size_reserve);
-    frame::push(stomptalk::method::tag::abort());
+    push(stomptalk::method::commit());
     push(stomptalk::header::transaction(transaction_id));
 }
 
-abort::abort(const packet& p)
-    : abort(p.get(stomptalk::header::tag::transaction()))
+abort::abort(std::string_view transaction_id)
+{
+    if (transaction_id.empty())
+        throw std::runtime_error("transaction id empty");
+
+    push(stomptalk::method::abort());
+    push(stomptalk::header::transaction(transaction_id));
+}
+
+receipt::receipt(std::string_view receipt_id)
+{
+    if (receipt_id.empty())
+        throw std::runtime_error("receipt id empty");
+
+    push(stomptalk::method::receipt());
+    push(stomptalk::header::receipt_id(receipt_id));
+}
+
+connected::connected(std::string_view session, std::string_view server_version)
+{
+    push(stomptalk::method::connected());
+    push(stomptalk::header::version_v12());
+    if (!server_version.empty())
+        push(stomptalk::header::server(server_version));
+    if (!session.empty())
+        push(stomptalk::header::session(session));
+}
+
+connected::connected(std::string_view session)
+    : connected(session, std::string_view())
 {   }
+
+error::error(std::string_view message, std::string_view receipt_id)
+{
+    if (message.empty())
+        throw std::runtime_error("message empty");
+
+    push(stomptalk::method::error());
+    push(stomptalk::header::message(message));
+    if (!receipt_id.empty())
+        push(stomptalk::header::receipt_id(receipt_id));
+}
+
+error::error(std::string_view message)
+    : error(message, std::string_view())
+{   }
+
+message::message(std::string_view destination,
+    std::string_view subscrition, std::string_view message_id)
+{
+    if (destination.empty())
+        throw std::runtime_error("destination empty");
+    if (subscrition.empty())
+        throw std::runtime_error("subscrition empty");
+    if (message_id.empty())
+        throw std::runtime_error("message_id empty");
+    push(stomptalk::method::message());
+    push(stomptalk::header::destination(destination));
+    push(stomptalk::header::subscription(subscrition));
+    push(stomptalk::header::message_id(message_id));
+}
+
+message::message(std::string_view destination,
+    std::string_view subscrition, std::size_t message_id)
+    : message(destination, subscrition, std::to_string(message_id))
+{   }
+
