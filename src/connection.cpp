@@ -1,4 +1,5 @@
 #include "stompconn/connection.hpp"
+#include <random>
 #include <iostream>
 
 using namespace stompconn;
@@ -327,7 +328,15 @@ connection::text_id_type startup_hex_minutes_20201001() noexcept
     auto val = static_cast<std::uint64_t>(c - t0);
 
     connection::text_id_type rc;
-    btdef::conv::to_hex_print(rc, static_cast<std::uint64_t>(val));
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> distrib(0, 255);
+    btdef::conv::to_hex_print(rc,
+        static_cast<std::uint8_t>(distrib(gen)));
+
+    btdef::conv::to_hex_print(rc,
+        static_cast<std::uint64_t>(val));
     return rc;
 }
 
@@ -343,10 +352,11 @@ connection::hex_text_type connection::message_seq_id() noexcept
 // последовательный номер сообщения
 void connection::update_connection_id() noexcept
 {
-    static const auto time = startup_hex_minutes_20201001();
+    connection_id_.clear();
     btdef::conv::to_hex_print(connection_id_,
         static_cast<std::uint64_t>(++connection_seq_id_));
     connection_id_ += '@';
+    static const auto time = startup_hex_minutes_20201001();
     connection_id_ += time;
 }
 
