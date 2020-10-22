@@ -204,10 +204,6 @@ public:
 
     void on_error(stomplay::fun_type fn);
 
-    text_id_type create_subs_id() noexcept;
-
-    text_id_type create_receipt_id() noexcept;
-
     text_id_type create_message_id() noexcept;
 };
 

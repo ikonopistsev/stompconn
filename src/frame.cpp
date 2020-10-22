@@ -139,8 +139,7 @@ logon::logon(std::string_view host)
     : logon(host, std::string_view(), std::string_view())
 {   }
 
-subscribe::subscribe(std::string_view destination,
-    std::string_view id, fn_type fn)
+subscribe::subscribe(std::string_view destination, fn_type fn)
     : fn_(std::move(fn))
 {
     if (destination.empty())
@@ -148,17 +147,7 @@ subscribe::subscribe(std::string_view destination,
 
     push(stomptalk::method::subscribe());
     push(stomptalk::header::destination(destination));
-    if (!id.empty())
-        push(stomptalk::header::id(id));
-} 
-
-subscribe::subscribe(std::string_view destination, std::string_view id)
-    : subscribe(destination, id, fn_type())
-{   }
-
-subscribe::subscribe(std::string_view destination, fn_type fn)
-    : subscribe(destination, std::string_view(), std::move(fn))
-{   }
+}
 
 void subscribe::add_subscribe(subscription_handler& handler)
 {

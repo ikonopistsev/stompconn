@@ -69,10 +69,6 @@ private:
     fn_type fn_{};
 
 public:
-    subscribe(std::string_view destination, std::string_view id, fn_type fn);
-
-    subscribe(std::string_view destination, std::string_view id);
-
     subscribe(std::string_view destination, fn_type fn);
 
     void add_subscribe(subscription_handler& handler);

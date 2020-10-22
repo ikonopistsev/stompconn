@@ -280,6 +280,7 @@ void stomplay::add_handler(frame& frame, fun_type fn)
 void stomplay::add_handler(subscribe& frame, fun_type fn)
 {
     frame.add_subscribe(subscription_);
+
     auto receipt = receipt_.create(std::move(fn));
     frame.push(stomptalk::header::receipt(receipt));
 }

@@ -60,6 +60,9 @@ void subscription_handler::exec(iterator i, packet p) noexcept
 
 std::size_t subscription_handler::create(fn_type fn)
 {
+    if (!fn)
+        throw std::runtime_error("destination empty");
+
     subscription_[++subscription_seq_id_] = std::move(fn);
     return subscription_seq_id_;
 }

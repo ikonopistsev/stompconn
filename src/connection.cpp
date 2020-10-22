@@ -92,7 +92,7 @@ void connection::exec_subscribe(const stomplay::fun_type& fn, packet p) noexcept
 }
 
 void connection::exec_unsubscribe(const stomplay::fun_type& fn,
-                                  const std::string& id, packet p) noexcept
+    const std::string& id, packet p) noexcept
 {
     try
     {
@@ -319,16 +319,6 @@ connection::text_id_type connection::create_id(char ch) noexcept
     rc += ch;
     rc += connection_id_;
     return rc;
-}
-
-connection::text_id_type connection::create_subs_id() noexcept
-{
-    return create_id('S');
-}
-
-connection::text_id_type connection::create_receipt_id() noexcept
-{
-    return create_id('R');
 }
 
 connection::text_id_type connection::create_message_id() noexcept
