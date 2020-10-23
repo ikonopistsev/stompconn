@@ -277,12 +277,6 @@ void stomplay::add_receipt(frame &frame, fun_type fn)
     frame.push(stomptalk::header::receipt(receipt));
 }
 
-void stomplay::add_subscribe(subscribe& frame, fun_type fn)
-{
-    frame.add_subscribe(subscription_);
-    add_receipt(frame, std::move(fn));
-}
-
 void stomplay::unsubscribe(std::string_view text_id)
 {
     auto id = stomptalk::antoull(text_id);

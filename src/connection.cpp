@@ -161,7 +161,7 @@ void connection::logout(stomplay::fun_type fn)
     frame frame;
     frame.push(stomptalk::method::disconnect());
 
-    stomplay_.add_receipt(frame, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     frame.write(bev_);
 }
@@ -180,7 +180,7 @@ void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
     assert(fn);
 
     // получаем обработчик подписки
-    stomplay_.add_receipt(frame, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     frame.write(bev_);
 }
@@ -192,7 +192,7 @@ void connection::send(stompconn::send frame, stomplay::fun_type fn)
 //    if (frame.mask(stomptalk::header::tag::transaction()))
 //        throw std::runtime_error("receipt for transaction");
 
-    stomplay_.add_receipt(frame, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     send(std::move(frame));
 }
@@ -201,7 +201,7 @@ void connection::send(stompconn::ack frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    stomplay_.add_receipt(frame, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     send(std::move(frame));
 }
@@ -210,7 +210,7 @@ void connection::send(stompconn::nack frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    stomplay_.add_receipt(frame, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     send(std::move(frame));
 }
@@ -219,7 +219,7 @@ void connection::send(stompconn::begin frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    stomplay_.add_receipt(frame, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     send(std::move(frame));
 }
@@ -228,7 +228,7 @@ void connection::send(stompconn::commit frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    stomplay_.add_receipt(frame, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     send(std::move(frame));
 }
@@ -237,7 +237,7 @@ void connection::send(stompconn::abort frame, stomplay::fun_type fn)
 {
     assert(fn);
 
-    stomplay_.add_receipt(frame, std::move(fn));
+    stomplay_.add_handler(frame, std::move(fn));
 
     send(std::move(frame));
 }

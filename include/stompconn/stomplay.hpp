@@ -96,7 +96,16 @@ public:
 
     void add_receipt(frame& frame, fun_type fn);
 
-    void add_subscribe(subscribe& frame, fun_type fn);
+    void add_handler(frame &frame, fun_type fn)
+    {
+        add_receipt(frame, std::move(fn));
+    }
+
+    void add_handler(subscribe &frame, fun_type fn)
+    {
+        frame.add_subscribe(subscription_);
+        add_receipt(frame, std::move(fn));
+    }
 
     void unsubscribe(std::string_view id);
 };
