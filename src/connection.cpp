@@ -74,23 +74,6 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
     do_evcb(BEV_EVENT_ERROR);
 }
 
-void connection::exec_subscribe(const stomplay::fun_type& fn, packet p) noexcept
-{
-    try
-    {
-        assert(fn);
-        fn(std::move(p));
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << e.what() << std::endl;
-    }
-    catch (...)
-    {
-        std::cerr << "exec_subscribe" << std::endl;
-    }
-}
-
 void connection::exec_unsubscribe(const stomplay::fun_type& fn,
     const std::string& id, packet p) noexcept
 {
@@ -98,11 +81,10 @@ void connection::exec_unsubscribe(const stomplay::fun_type& fn,
     {
         assert(fn);
         assert(!id.empty());
-
-        fn(std::move(p));
-
         // удаляем обработчик подписки
         stomplay_.unsubscribe(id);
+
+        fn(std::move(p));
     }
     catch (const std::exception& e)
     {
@@ -138,17 +120,17 @@ void connection::connect(btpro::dns_ref dns, const std::string& host, int port)
     bev_.connect(dns, host, port);
 }
 
-void connection::unsubscribe(std::string_view id, stomplay::fun_type fn)
+void connection::unsubscribe(std::string_view id, stomplay::fun_type real_fn)
 {
-    assert(fn);
+    assert(real_fn);
 
     frame frame;
     frame.push(stomptalk::method::unsubscribe());
     frame.push(stomptalk::header::id(id));
     stomplay_.add_receipt(frame,
-        [this , id = std::string(id), receipt_fn = std::move(fn)] (packet p) {
+        [this , id = std::string(id), fn = std::move(real_fn)](packet p) {
           // вызываем клиентский обработчик подписки
-          exec_unsubscribe(receipt_fn, id, std::move(p));
+          exec_unsubscribe(fn, id, std::move(p));
     });
 
     frame.write(bev_);

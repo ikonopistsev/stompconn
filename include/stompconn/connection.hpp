@@ -52,8 +52,6 @@ private:
 
     void create();
 
-    void exec_subscribe(const stomplay::fun_type& fn, packet p) noexcept;
-
     void exec_unsubscribe(const stomplay::fun_type& fn,
                           const std::string& id, packet p) noexcept;
 
