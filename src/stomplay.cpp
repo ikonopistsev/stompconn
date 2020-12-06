@@ -32,7 +32,9 @@ void stomplay::on_method(stomptalk::parser_hook& hook,
 #ifndef NDEBUG
         dump_ = method;
 #endif
-        method_.set(stomptalk::method::eval_stom_method(method));
+        using namespace stomptalk::method;
+
+        method_.set(eval_stom_method(method));
 
         if (!method_.valid())
             std::cerr << "stomplay method: " << method << " unknown" << std::endl;
@@ -142,28 +144,29 @@ void stomplay::on_frame_end(stomptalk::parser_hook&, const char*) noexcept
 #ifndef NDEBUG
     std::cout << "<< " <<  dump_ << std::endl << std::endl;
 #endif
+    using namespace stomptalk::method;
 
     switch (method_.num_id())
     {
-    case stomptalk::method::tag::error::num:
+    case tag::error::num:
         exec_on_error();
         break;
 
-    case stomptalk::method::tag::receipt::num: {
+    case tag::receipt::num: {
         auto id = header_store_.get(stomptalk::header::tag::receipt_id());
         if (!id.empty())
             exec_on_receipt(id);
         break;
     }
 
-    case stomptalk::method::tag::message::num: {
+    case tag::message::num: {
         auto subs = header_store_.get(stomptalk::header::tag::subscription());
         if (!subs.empty())
             exec_on_message(subs);
         break;
     }
 
-    case stomptalk::method::tag::connected::num:
+    case tag::connected::num:
         exec_on_logon();
         break;
     }
@@ -175,7 +178,8 @@ void stomplay::exec_on_error() noexcept
     {
         if (session_.empty())
         {
-            on_logon_fn_(packet(header_store_, method_, std::move(recv_)));
+            on_logon_fn_(packet(header_store_, session_,
+                                method_, std::move(recv_)));
             return;
         }
 
@@ -206,7 +210,8 @@ void stomplay::exec_on_logon() noexcept
     try
     {
         session_ = header_store_.get(stomptalk::header::tag::session());
-        on_logon_fn_(packet(header_store_, session_, method_, std::move(recv_)));
+        on_logon_fn_(packet(header_store_, session_,
+                            method_, std::move(recv_)));
     }
     catch (const std::exception& e)
     {

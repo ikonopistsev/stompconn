@@ -72,11 +72,6 @@ void frame::write(btpro::tcp::bev& bev)
     bev.write(std::move(data_));
 }
 
-void frame::copyout(btpro::tcp::bev&)
-{
-    complete();
-}
-
 btpro::buffer frame::data()
 {
     complete();

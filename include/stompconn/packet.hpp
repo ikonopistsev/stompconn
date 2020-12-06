@@ -9,6 +9,7 @@ class packet
 {
 public:
     using header_store = stomptalk::header_store;
+
 protected:
     const header_store& header_;
     std::string_view session_{};
@@ -19,25 +20,18 @@ public:
     packet(packet&&) = default;
 
     packet(const header_store& header, std::string_view session,
-        stomptalk::method::generic method, btpro::buffer data)
+        stomptalk::method::generic method, btpro::buffer_ref payload)
         : header_(header)
         , session_(session)
         , method_(method)
-        , payload_(std::move(data))
-    {   }
-
-    packet(const header_store& header,
-        stomptalk::method::generic method, btpro::buffer data)
-        : header_(header)
-        , method_(method)
-        , payload_(std::move(data))
-    {   }
-
-    virtual ~packet() = default;
+    {
+        payload.copyout(payload_);
+    }
 
     bool error() const noexcept
     {
-        return method_.num_id() == stomptalk::method::num_id::error;
+        using namespace stomptalk::method;
+        return method_.num_id() == num_id::error;
     }
 
     operator bool() const noexcept

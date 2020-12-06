@@ -40,8 +40,6 @@ public:
 
     virtual void write(btpro::tcp::bev& bev);
 
-    virtual void copyout(btpro::tcp::bev& bev);
-
     virtual btpro::buffer data();
 
     virtual std::string str() const;
