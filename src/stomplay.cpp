@@ -34,7 +34,7 @@ void stomplay::on_method(stomptalk::parser_hook& hook,
 #endif
         using namespace stomptalk::method;
 
-        method_.set(eval_stom_method(method));
+        method_.eval(method);
 
         if (!method_.valid())
             std::cerr << "stomplay method: " << method << " unknown" << std::endl;
