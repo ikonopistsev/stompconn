@@ -276,10 +276,11 @@ void stomplay::logout()
     session_.clear();
 }
 
-void stomplay::add_receipt(frame &frame, fun_type fn)
+std::string_view stomplay::add_receipt(frame &frame, fun_type fn)
 {
     auto receipt = receipt_.create(std::move(fn));
     frame.push(stomptalk::header::receipt(receipt));
+    return receipt;
 }
 
 void stomplay::unsubscribe(std::string_view text_id)

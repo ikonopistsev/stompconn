@@ -94,17 +94,17 @@ public:
 
     void logout();
 
-    void add_receipt(frame& frame, fun_type fn);
+    std::string_view add_receipt(frame& frame, fun_type fn);
 
-    void add_handler(frame &frame, fun_type fn)
+    std::string_view add_handler(frame &frame, fun_type fn)
     {
-        add_receipt(frame, std::move(fn));
+        return add_receipt(frame, std::move(fn));
     }
 
-    void add_handler(subscribe &frame, fun_type fn)
+    std::string_view add_handler(subscribe &frame, fun_type fn)
     {
         frame.add_subscribe(subscription_);
-        add_receipt(frame, std::move(fn));
+        return add_receipt(frame, std::move(fn));
     }
 
     void unsubscribe(std::string_view id);
