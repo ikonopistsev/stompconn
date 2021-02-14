@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.7)
 
-project(stompconn VERSION 1.3.2 LANGUAGES CXX)
+project(stompconn VERSION 1.3.3 LANGUAGES CXX)
 
 option(STOMPCONN_DEBUG "show debug" OFF)
 option(STOMPCONN_LIBRARY_STATIC "Set library type to STATIC" ON)
@@ -33,7 +33,6 @@ set(pub_header
     include/stompconn/stomplay.hpp
     include/stompconn/frame.hpp
     include/stompconn/connection.hpp
-    include/stomptalk/header_store.hpp
     include/stomptalk/version.hpp
 )
 
