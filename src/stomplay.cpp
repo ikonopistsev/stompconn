@@ -209,6 +209,7 @@ void stomplay::exec_on_logon() noexcept
 {
     try
     {
+        // save session
         session_ = header_store_.get(stomptalk::header::tag::session());
         on_logon_fn_(packet(header_store_, session_,
                             method_, std::move(recv_)));
