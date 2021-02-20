@@ -10,6 +10,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_definitions("-DSTOMPCONN_VERSION=${PROJECT_VERSION}")
 
+if (WIN32)
+    add_definitions("-DNOMINMAX")
+endif()
+
 set(source
     src/frame.cpp
     src/handler.cpp
