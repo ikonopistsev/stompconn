@@ -1,12 +1,21 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.7)
 
-project(stompconn VERSION 1.3.0 DESCRIPTION "stomp connection helper")
+project(stompconn VERSION 1.3.3 LANGUAGES CXX)
 
 option(STOMPCONN_DEBUG "show debug" OFF)
 option(STOMPCONN_LIBRARY_STATIC "Set library type to STATIC" ON)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+macro(use_cxx17)
+  if (CMAKE_VERSION VERSION_LESS "3.8.2")
+    message(STATUS "stompconn enable c++17")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+  else ()
+    set (CMAKE_CXX_STANDARD 17)
+    set (CMAKE_CXX_STANDARD_REQUIRED ON)
+  endif ()
+endmacro(use_cxx17)
+
+use_cxx17()
 
 add_definitions("-DSTOMPCONN_VERSION=${PROJECT_VERSION}")
 
@@ -28,7 +37,6 @@ set(pub_header
     include/stompconn/stomplay.hpp
     include/stompconn/frame.hpp
     include/stompconn/connection.hpp
-    include/stomptalk/header_store.hpp
     include/stomptalk/version.hpp
 )
 

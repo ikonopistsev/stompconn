@@ -198,8 +198,8 @@ std::string body_frame::str() const
         rc += "\n\n< "sv;
         if (size > 32)
         {
-            rc += payload_.str().substr(0, 8);
-            rc += " size="sv;
+            rc += payload_.str().substr(0, 32);
+            rc += "... size="sv;
             rc += std::to_string(size);
         }
         else

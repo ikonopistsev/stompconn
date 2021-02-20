@@ -209,6 +209,7 @@ void stomplay::exec_on_logon() noexcept
 {
     try
     {
+        // save session
         session_ = header_store_.get(stomptalk::header::tag::session());
         on_logon_fn_(packet(header_store_, session_,
                             method_, std::move(recv_)));
@@ -276,10 +277,11 @@ void stomplay::logout()
     session_.clear();
 }
 
-void stomplay::add_receipt(frame &frame, fun_type fn)
+std::string_view stomplay::add_receipt(frame &frame, fun_type fn)
 {
     auto receipt = receipt_.create(std::move(fn));
     frame.push(stomptalk::header::receipt(receipt));
+    return receipt;
 }
 
 void stomplay::unsubscribe(std::string_view text_id)
