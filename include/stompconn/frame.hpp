@@ -14,7 +14,6 @@ class frame
 {
 protected:
     btpro::buffer data_{};
-    constexpr static std::size_t holder_size = 0;
 
 public:
     frame() = default;

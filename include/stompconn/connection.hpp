@@ -3,6 +3,7 @@
 #include "stompconn/stomplay.hpp"
 #include "stomptalk/basic_text.hpp"
 #include "btpro/tcp/bev.hpp"
+#include "btpro/evcore.hpp"
 #include <map>
 
 namespace stompconn {
@@ -18,6 +19,9 @@ public:
 private:
     btpro::queue_ref queue_{};
     btpro::tcp::bev bev_{};
+    btpro::evs timeout_{};
+    std::size_t write_timeout_{};
+    std::size_t read_timeout_{};
 
     on_event_type event_fun_{};
     on_connect_type on_connect_fun_{};
@@ -44,9 +48,19 @@ private:
             btpro::buffer_ref input(bufferevent_get_input(hbev));
             static_cast<A*>(self)->do_recv(std::move(input));
         }
+
+        static inline void heart_beat(evutil_socket_t, short, void* self)
+        {
+            assert(self);
+            static_cast<A*>(self)->send_heart_beat();
+        }
     };
 
     void do_evcb(short what) noexcept;
+
+    void setup_write_timeout();
+
+    void setup_read_timeout();
 
     void do_recv(btpro::buffer_ref input) noexcept;
 
@@ -71,6 +85,8 @@ public:
         assert(evfn);
         assert(connfn);
     }
+
+    void setup_heart_beat(const packet& logon);
 
     void connect(const btpro::ip::addr& addr);
 
@@ -197,12 +213,16 @@ public:
     template<class F>
     void send(F frame)
     {
+        setup_write_timeout();
+
         frame.write(bev_);
     }
 
     void on_error(stomplay::fun_type fn);
 
     text_id_type create_message_id() noexcept;
+
+    void send_heart_beat();
 };
 
 } // namespace stomptalk

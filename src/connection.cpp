@@ -14,9 +14,28 @@ void connection::do_evcb(short what) noexcept
     }
     else
     {
+        write_timeout_ = 0;
+        read_timeout_ = 0;
+        timeout_.remove();
         stomplay_.logout();
         bev_.destroy();
         event_fun_(what);
+    }
+}
+
+void connection::setup_write_timeout()
+{
+    if (write_timeout_)
+        timeout_.add(std::chrono::milliseconds(write_timeout_));
+}
+
+void connection::setup_read_timeout()
+{
+    if (read_timeout_)
+    {
+        auto t = btpro::make_timeval(
+            std::chrono::milliseconds(read_timeout_));
+        bev_.set_timeout(&t, nullptr);
     }
 }
 
@@ -59,6 +78,8 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
                 input.drain(rc);
             }
         }
+
+        setup_read_timeout();
 
         return;
     }
@@ -106,6 +127,47 @@ void connection::create()
         nullptr, &proxy<connection>::evcb, this);
 }
 
+void connection::setup_heart_beat(const packet& logon)
+{
+    auto h = logon.get(stomptalk::header::tag::heart_beat());
+    if (!h.empty())
+    {
+        using namespace std::literals;
+        auto f = h.find(","sv);
+        if (f != std::string_view::npos)
+        {
+            read_timeout_ = static_cast<std::size_t>(
+                std::atoll(h.data()));
+
+            // because of timing inaccuracies, the receiver
+            // SHOULD be tolerant and take into account an error margin
+            // нужно быть толерантным
+            read_timeout_ *= 1.5;
+
+            setup_read_timeout();
+
+            write_timeout_ = static_cast<std::size_t>(
+                std::atoll(h.substr(f + 1).data()));
+
+            if (write_timeout_)
+            {
+                // because of timing inaccuracies, the receiver
+                // SHOULD be tolerant and take into account an error margin
+                // нужно быть толерантным
+                write_timeout_ *= 0.9;
+
+                if (!timeout_.initialized())
+                {
+                    timeout_.create(queue_, EV_PERSIST|EV_TIMEOUT,
+                        proxy<connection>::heart_beat, this);
+                }
+
+                timeout_.add(std::chrono::milliseconds(write_timeout_));
+            }
+        }
+    }
+}
+
 void connection::connect(const btpro::ip::addr& addr)
 {
     create();
@@ -133,6 +195,8 @@ void connection::unsubscribe(std::string_view id, stomplay::fun_type real_fn)
           exec_unsubscribe(fn, id, std::move(p));
     });
 
+    setup_write_timeout();
+
     frame.write(bev_);
 }
 
@@ -154,6 +218,8 @@ void connection::send(stompconn::logon frame, stomplay::fun_type fn)
 
     stomplay_.on_logon(std::move(fn));
 
+    setup_write_timeout();
+
     frame.write(bev_);
 }
 
@@ -163,6 +229,8 @@ void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
 
     // получаем обработчик подписки
     stomplay_.add_handler(frame, std::move(fn));
+
+    setup_write_timeout();
 
     frame.write(bev_);
 }
@@ -306,4 +374,18 @@ connection::text_id_type connection::create_id(char ch) noexcept
 connection::text_id_type connection::create_message_id() noexcept
 {
     return create_id('M');
+}
+
+void connection::send_heart_beat()
+{
+    try
+    {
+        // if the sender has no real STOMP frame to send,
+        // it MUST send an end-of-line (EOL)
+        auto buf = bev_.output();
+        if (buf.empty())
+            buf.append_ref(std::cref("\n"));
+    }
+    catch (...)
+    {   }
 }
