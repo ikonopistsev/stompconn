@@ -14,13 +14,9 @@ void connection::do_evcb(short what) noexcept
     }
     else
     {
-        write_timeout_ = 0;
-        read_timeout_ = 0;
-        if (timeout_.initialized())
-            timeout_.remove();
-        stomplay_.logout();
-        bev_.destroy();
-        event_fun_(what);
+        exec_event_fun(what);
+
+        disconnect();
     }
 }
 
@@ -143,6 +139,22 @@ void connection::exec_unsubscribe(const stomplay::fun_type& fn,
     }
 }
 
+void connection::exec_event_fun(short what) noexcept
+{
+    try
+    {
+        event_fun_(what);
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << e.what() << std::endl;
+    }
+    catch (...)
+    {
+        std::cerr << "exec_event_fun" << std::endl;
+    }
+}
+
 void connection::create()
 {
     bev_.destroy();
@@ -151,6 +163,9 @@ void connection::create()
 
     bev_.set(&proxy<connection>::recvcb,
         nullptr, &proxy<connection>::evcb, this);
+
+    write_timeout_ = 0;
+    read_timeout_ = 0;
 }
 
 void connection::setup_heart_beat(const packet& logon)
@@ -194,6 +209,11 @@ void connection::setup_heart_beat(const packet& logon)
     }
 }
 
+connection::~connection()
+{
+    disconnect();
+}
+
 void connection::connect(const btpro::ip::addr& addr)
 {
     create();
@@ -224,6 +244,21 @@ void connection::unsubscribe(std::string_view id, stomplay::fun_type real_fn)
     setup_write_timeout();
 
     frame.write(bev_);
+}
+
+void connection::disconnect() noexcept
+{
+    try
+    {
+        if (timeout_.initialized())
+            timeout_.remove();
+
+        stomplay_.logout();
+
+        bev_.destroy();
+    }
+    catch (...)
+    {   }
 }
 
 void connection::logout(stomplay::fun_type fn)

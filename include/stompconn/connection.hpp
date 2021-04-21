@@ -71,6 +71,8 @@ private:
     void exec_unsubscribe(const stomplay::fun_type& fn,
                           const std::string& id, packet p) noexcept;
 
+    void exec_event_fun(short ef) noexcept;
+
     void update_connection_id() noexcept;
 
     hex_text_type message_seq_id() noexcept;
@@ -91,6 +93,8 @@ public:
         assert(evfn);
         assert(connfn);
     }
+
+    ~connection();
 
     void connect(const btpro::ip::addr& addr);
 
@@ -115,6 +119,8 @@ public:
         auto tv = btpro::make_timeval(timeout);
         bev_.set_timeout(nullptr, &tv);
     }
+
+    void disconnect() noexcept;
 
     const std::string& session() const noexcept
     {
