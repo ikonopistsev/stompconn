@@ -52,7 +52,7 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
             auto ptr = reinterpret_cast<const char*>(
                 input.pullup(static_cast<ev_ssize_t>(needle)));
 
-#ifdef NDEBUG
+#ifdef DEBUG
             if ((needle < 2) && ((ptr[0] == '\n') || (ptr[0] == '\r')))
                 std::cout << "recv ping" << std::endl;
 #endif // DEBUG
