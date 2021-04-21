@@ -15,24 +15,39 @@ void connection::do_evcb(short what) noexcept
     else
     {
         exec_event_fun(what);
-
         disconnect();
     }
 }
 
-void connection::setup_write_timeout()
+void connection::setup_write_timeout(std::size_t timeout, double tolerant)
 {
-    if (write_timeout_)
-        timeout_.add(std::chrono::milliseconds(write_timeout_));
+    if (timeout)
+    {
+        if (!timeout_.initialized())
+        {
+            timeout_.create(queue_, EV_PERSIST|EV_TIMEOUT,
+                proxy<connection>::heart_beat, this);
+        }
+
+        // because of timing inaccuracies, the receiver
+        // SHOULD be tolerant and take into account an error margin
+        // они должны быть толерантными
+        timeout *= tolerant;
+        timeout_.add(std::chrono::milliseconds(timeout));
+    }
 }
 
-void connection::setup_read_timeout()
+void connection::setup_read_timeout(std::size_t timeout, double tolerant)
 {
-    if (read_timeout_)
+    if (timeout)
     {
-        auto t = btpro::make_timeval(
-            std::chrono::milliseconds(read_timeout_));
-        bev_.set_timeout(&t, nullptr);
+        // because of timing inaccuracies, the receiver
+        // SHOULD be tolerant and take into account an error margin
+        // нужно быть толерантным
+        timeout *= tolerant;
+        auto tv = btpro::make_timeval(
+            std::chrono::milliseconds(timeout));
+        bev_.set_timeout(&tv, nullptr);
     }
 }
 
@@ -81,7 +96,7 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
             }
         }
 
-        setup_read_timeout();
+        setup_read_timeout(read_timeout_);
 
         return;
     }
@@ -180,31 +195,12 @@ void connection::setup_heart_beat(const packet& logon)
             read_timeout_ = static_cast<std::size_t>(
                 std::atoll(h.data()));
 
-            // because of timing inaccuracies, the receiver
-            // SHOULD be tolerant and take into account an error margin
-            // нужно быть толерантным
-            read_timeout_ *= 1.3;
-
-            setup_read_timeout();
+            setup_read_timeout(read_timeout_);
 
             write_timeout_ = static_cast<std::size_t>(
                 std::atoll(h.substr(f + 1).data()));
 
-            if (write_timeout_)
-            {
-                // because of timing inaccuracies, the receiver
-                // SHOULD be tolerant and take into account an error margin
-                // они должны быть толерантными
-                write_timeout_ *= 0.9;
-
-                if (!timeout_.initialized())
-                {
-                    timeout_.create(queue_, EV_PERSIST|EV_TIMEOUT,
-                        proxy<connection>::heart_beat, this);
-                }
-
-                timeout_.add(std::chrono::milliseconds(write_timeout_));
-            }
+            setup_write_timeout(write_timeout_);
         }
     }
 }
@@ -241,7 +237,7 @@ void connection::unsubscribe(std::string_view id, stomplay::fun_type real_fn)
           exec_unsubscribe(fn, id, std::move(p));
     });
 
-    setup_write_timeout();
+    setup_write_timeout(write_timeout_);
 
     frame.write(bev_);
 }
@@ -281,7 +277,7 @@ void connection::send(stompconn::logon frame, stomplay::fun_type real_fn)
         exec_logon(fn, std::move(p));
     });
 
-    setup_write_timeout();
+    setup_write_timeout(write_timeout_);
 
     frame.write(bev_);
 }
@@ -293,7 +289,7 @@ void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
     // получаем обработчик подписки
     stomplay_.add_handler(frame, std::move(fn));
 
-    setup_write_timeout();
+    setup_write_timeout(write_timeout_);
 
     frame.write(bev_);
 }

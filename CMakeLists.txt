@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.7)
 
-project(stompconn VERSION 1.4.1 LANGUAGES CXX)
+project(stompconn VERSION 1.4.2 LANGUAGES CXX)
 
 option(STOMPCONN_DEBUG "show debug" OFF)
 option(STOMPCONN_LIBRARY_STATIC "Set library type to STATIC" ON)

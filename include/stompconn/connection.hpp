@@ -58,9 +58,9 @@ private:
 
     void do_evcb(short what) noexcept;
 
-    void setup_write_timeout();
+    void setup_write_timeout(std::size_t timeout, double tolerant = 0.9);
 
-    void setup_read_timeout();
+    void setup_read_timeout(std::size_t timeout, double tolerant = 1.3);
 
     void do_recv(btpro::buffer_ref input) noexcept;
 
@@ -223,7 +223,7 @@ public:
     template<class F>
     void send(F frame)
     {
-        setup_write_timeout();
+        setup_write_timeout(write_timeout_);
 
         frame.write(bev_);
     }
