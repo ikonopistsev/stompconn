@@ -16,7 +16,8 @@ void connection::do_evcb(short what) noexcept
     {
         write_timeout_ = 0;
         read_timeout_ = 0;
-        timeout_.remove();
+        if (timeout_.initialized())
+            timeout_.remove();
         stomplay_.logout();
         bev_.destroy();
         event_fun_(what);
@@ -55,6 +56,10 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
             auto ptr = reinterpret_cast<const char*>(
                 input.pullup(static_cast<ev_ssize_t>(needle)));
 
+#ifdef NDEBUG
+            if ((needle < 2) && ((ptr[0] == '\n') || (ptr[0] == '\r')))
+                std::cout << "recv ping" << std::endl;
+#endif // DEBUG
             // парсим данные
             auto rc = stomplay_.parse(ptr, needle);
 
@@ -63,9 +68,10 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
             // дисконнектимся
             if (rc < needle)
             {
+#ifdef DEBUG
                 std::cerr << "stomplay parse: "
                           << stomplay_.error_str() << std::endl;
-
+#endif
                 // очищаем весь входящий буфер
                 input.drain(input.size());
                 // вызываем ошибку
@@ -93,6 +99,26 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
     }
 
     do_evcb(BEV_EVENT_ERROR);
+}
+
+void connection::exec_logon(const stomplay::fun_type& fn, packet p) noexcept
+{
+    try
+    {
+        assert(fn);
+
+        setup_heart_beat(p);
+
+        fn(std::move(p));
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << e.what() << std::endl;
+    }
+    catch (...)
+    {
+        std::cerr << "exec_unsubscribe" << std::endl;
+    }
 }
 
 void connection::exec_unsubscribe(const stomplay::fun_type& fn,
@@ -212,11 +238,13 @@ void connection::logout(stomplay::fun_type fn)
     frame.write(bev_);
 }
 
-void connection::send(stompconn::logon frame, stomplay::fun_type fn)
+void connection::send(stompconn::logon frame, stomplay::fun_type real_fn)
 {
-    assert(fn);
+    assert(real_fn);
 
-    stomplay_.on_logon(std::move(fn));
+    stomplay_.on_logon([this, fn = std::move(real_fn)](packet p) {
+        exec_logon(fn, std::move(p));
+    });
 
     setup_write_timeout();
 
@@ -238,9 +266,6 @@ void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
 void connection::send(stompconn::send frame, stomplay::fun_type fn)
 {
     assert(fn);
-
-//    if (frame.mask(stomptalk::header::tag::transaction()))
-//        throw std::runtime_error("receipt for transaction");
 
     stomplay_.add_handler(frame, std::move(fn));
 
@@ -376,7 +401,7 @@ connection::text_id_type connection::create_message_id() noexcept
     return create_id('M');
 }
 
-void connection::send_heart_beat()
+void connection::send_heart_beat() noexcept
 {
     try
     {
@@ -385,6 +410,10 @@ void connection::send_heart_beat()
         auto buf = bev_.output();
         if (buf.empty())
             buf.append_ref(std::cref("\n"));
+
+#ifdef DEBUG
+        std::cout << "send ping" << std::endl;
+#endif
     }
     catch (...)
     {   }

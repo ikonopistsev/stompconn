@@ -66,6 +66,8 @@ private:
 
     void create();
 
+    void exec_logon(const stomplay::fun_type& fn, packet p) noexcept;
+
     void exec_unsubscribe(const stomplay::fun_type& fn,
                           const std::string& id, packet p) noexcept;
 
@@ -74,6 +76,10 @@ private:
     hex_text_type message_seq_id() noexcept;
 
     text_id_type create_id(char ch) noexcept;
+
+    void setup_heart_beat(const packet& logon);
+
+    void send_heart_beat() noexcept;
 
 public:
     connection(btpro::queue_ref queue,
@@ -85,8 +91,6 @@ public:
         assert(evfn);
         assert(connfn);
     }
-
-    void setup_heart_beat(const packet& logon);
 
     void connect(const btpro::ip::addr& addr);
 
@@ -221,8 +225,6 @@ public:
     void on_error(stomplay::fun_type fn);
 
     text_id_type create_message_id() noexcept;
-
-    void send_heart_beat();
 };
 
 } // namespace stomptalk
