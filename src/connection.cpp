@@ -183,7 +183,7 @@ void connection::setup_heart_beat(const packet& logon)
             // because of timing inaccuracies, the receiver
             // SHOULD be tolerant and take into account an error margin
             // нужно быть толерантным
-            read_timeout_ *= 1.5;
+            read_timeout_ *= 1.3;
 
             setup_read_timeout();
 
@@ -194,7 +194,7 @@ void connection::setup_heart_beat(const packet& logon)
             {
                 // because of timing inaccuracies, the receiver
                 // SHOULD be tolerant and take into account an error margin
-                // нужно быть толерантным
+                // они должны быть толерантными
                 write_timeout_ *= 0.9;
 
                 if (!timeout_.initialized())
