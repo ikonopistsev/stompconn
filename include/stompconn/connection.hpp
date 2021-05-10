@@ -4,7 +4,6 @@
 #include "stomptalk/basic_text.hpp"
 #include "btpro/tcp/bev.hpp"
 #include "btpro/evcore.hpp"
-#include <map>
 
 namespace stompconn {
 
@@ -13,6 +12,7 @@ class connection
 public:
     using on_connect_type = std::function<void()>;
     using on_event_type = std::function<void(short)>;
+    using on_error_type = std::function<void(std::exception_ptr)>;
     using text_id_type = stomptalk::basic_text<char, 64>;
     using hex_text_type = stomptalk::basic_text<char, 20>;
 
@@ -25,6 +25,7 @@ private:
 
     on_event_type event_fun_{};
     on_connect_type on_connect_fun_{};
+    on_error_type on_error_fun_{};
 
     stomplay stomplay_{};
 
@@ -83,6 +84,8 @@ private:
 
     void send_heart_beat() noexcept;
 
+    void exec_error(std::exception_ptr ex) noexcept;
+
 public:
     connection(btpro::queue_ref queue,
                on_event_type evfn, on_connect_type connfn) noexcept
@@ -132,31 +135,24 @@ public:
     // stomp DISCONNECT
     void logout(stomplay::fun_type fn);
 
-    void ack(const packet& p, stomplay::fun_type fn)
+    static auto get_ack_id(const packet& p) noexcept
     {
-        assert(fn);
-        auto transaction_id = p.get(stomptalk::header::tag::transaction());
-        send(stompconn::ack(transaction_id), std::move(fn));
+        return p.get(stomptalk::header::tag::id());
     }
 
-    void ack(const packet& p)
-    {
-        auto transaction_id = p.get(stomptalk::header::tag::transaction());
-        send(stompconn::ack(transaction_id));
-    }
+    // result is was asked or nacked :)
+    // with_transaction_id = false by default
+    void ack(const packet& p, bool with_transaction_id, stomplay::fun_type fn);
 
-    void nack(const packet& p, stomplay::fun_type fn)
-    {
-        assert(fn);
-        auto id = p.get(stomptalk::header::tag::receipt());
-        send(stompconn::nack(id), std::move(fn));
-    }
+    void ack(const packet& p, stomplay::fun_type fn);
 
-    void nack(const packet& p)
-    {
-        auto transaction_id = p.get(stomptalk::header::tag::transaction());
-        send(stompconn::nack(transaction_id));
-    }
+    void ack(const packet& p, bool with_transaction_id = false);
+
+    void nack(const packet& p, bool with_transaction_id, stomplay::fun_type fn);
+
+    void nack(const packet& p, stomplay::fun_type fn);
+
+    void nack(const packet& p, bool with_transaction_id = false);
 
     void begin(std::string_view transaction_id, stomplay::fun_type fn)
     {
@@ -229,6 +225,8 @@ public:
     }
 
     void on_error(stomplay::fun_type fn);
+
+    void on_except(on_error_type fn);
 
     text_id_type create_message_id() noexcept;
 };

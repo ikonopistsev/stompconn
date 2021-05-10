@@ -100,13 +100,9 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
 
         return;
     }
-    catch (const std::exception& e)
-    {
-        std::cerr << e.what() << std::endl;
-    }
     catch (...)
     {
-        std::cerr << "receive hell" << std::endl;
+        exec_error(std::current_exception());
     }
 
     do_evcb(BEV_EVENT_ERROR);
@@ -122,13 +118,9 @@ void connection::exec_logon(const stomplay::fun_type& fn, packet p) noexcept
 
         fn(std::move(p));
     }
-    catch (const std::exception& e)
-    {
-        std::cerr << e.what() << std::endl;
-    }
     catch (...)
     {
-        std::cerr << "exec_unsubscribe" << std::endl;
+        exec_error(std::current_exception());
     }
 }
 
@@ -144,13 +136,9 @@ void connection::exec_unsubscribe(const stomplay::fun_type& fn,
 
         fn(std::move(p));
     }
-    catch (const std::exception& e)
-    {
-        std::cerr << e.what() << std::endl;
-    }
     catch (...)
     {
-        std::cerr << "exec_unsubscribe" << std::endl;
+        exec_error(std::current_exception());
     }
 }
 
@@ -160,13 +148,9 @@ void connection::exec_event_fun(short what) noexcept
     {
         event_fun_(what);
     }
-    catch (const std::exception& e)
-    {
-        std::cerr << e.what() << std::endl;
-    }
     catch (...)
     {
-        std::cerr << "exec_event_fun" << std::endl;
+        exec_error(std::current_exception());
     }
 }
 
@@ -254,7 +238,9 @@ void connection::disconnect() noexcept
         bev_.destroy();
     }
     catch (...)
-    {   }
+    {
+        exec_error(std::current_exception());
+    }
 }
 
 void connection::logout(stomplay::fun_type fn)
@@ -267,6 +253,72 @@ void connection::logout(stomplay::fun_type fn)
     stomplay_.add_handler(frame, std::move(fn));
 
     frame.write(bev_);
+}
+
+// some helpers
+static inline auto add_tranaction_id(stompconn::frame& frame, const packet& p)
+{
+    auto transaction_id = p.get(stomptalk::header::tag::transaction());
+    auto rc = !transaction_id.empty();
+    if (rc)
+        frame.push(stomptalk::header::transaction(transaction_id));
+    return rc;
+}
+
+void connection::ack(const packet& p,
+    bool with_transaction_id, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    stompconn::ack frame(get_ack_id(p));
+    if (with_transaction_id)
+        add_tranaction_id(frame, p);
+
+    send(std::move(frame), std::move(fn));
+}
+
+void connection::ack(const packet& p, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    send(stompconn::ack(get_ack_id(p)), std::move(fn));
+}
+
+void connection::ack(const packet& p, bool with_transaction_id)
+{
+    stompconn::ack frame(get_ack_id(p));
+    if (with_transaction_id)
+        add_tranaction_id(frame, p);
+
+    send(std::move(frame));
+}
+
+void connection::nack(const packet& p,
+    bool with_transaction_id, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    stompconn::nack frame(get_ack_id(p));
+    if (with_transaction_id)
+        add_tranaction_id(frame, p);
+
+    send(std::move(frame), std::move(fn));
+}
+
+void connection::nack(const packet& p, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    send(stompconn::nack(get_ack_id(p)), std::move(fn));
+}
+
+void connection::nack(const packet& p, bool with_transaction_id)
+{
+    stompconn::nack frame(get_ack_id(p));
+    if (with_transaction_id)
+        add_tranaction_id(frame, p);
+
+    send(std::move(frame));
 }
 
 void connection::send(stompconn::logon frame, stomplay::fun_type real_fn)
@@ -376,6 +428,11 @@ void connection::on_error(stomplay::fun_type fn)
     stomplay_.on_error(std::move(fn));
 }
 
+void connection::on_except(on_error_type fn)
+{
+    on_error_fun_ = std::move(fn);
+}
+
 // число минут с 2020 года
 connection::text_id_type startup_hex_minutes_20201001() noexcept
 {
@@ -445,6 +502,19 @@ void connection::send_heart_beat() noexcept
 #ifdef DEBUG
         std::cout << "send ping" << std::endl;
 #endif
+    }
+    catch (...)
+    {
+        exec_error(std::current_exception());
+    }
+}
+
+void connection::exec_error(std::exception_ptr ex) noexcept
+{
+    try
+    {
+        if (on_error_fun_)
+            on_error_fun_(ex);
     }
     catch (...)
     {   }

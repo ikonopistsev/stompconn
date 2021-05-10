@@ -220,12 +220,18 @@ send::send(std::string_view destination)
 
 ack::ack(std::string_view ack_id)
 {
+    if (ack_id.empty())
+        throw std::runtime_error("ack id empty");
+
     push(stomptalk::method::ack());
     push(stomptalk::header::id(ack_id));
 }
 
 nack::nack(std::string_view ack_id)
 {
+    if (ack_id.empty())
+        throw std::runtime_error("ack id empty");
+
     push(stomptalk::method::nack());
     push(stomptalk::header::id(ack_id));
 }

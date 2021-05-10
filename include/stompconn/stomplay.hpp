@@ -40,7 +40,8 @@ private:
     std::string dump_{};
 #endif
 
-    virtual void on_frame(stomptalk::parser_hook&, const char*) noexcept override;
+    virtual void on_frame(stomptalk::parser_hook&,
+                          const char*) noexcept override;
 
     virtual void on_method(stomptalk::parser_hook& hook,
         std::string_view method) noexcept override;
@@ -54,7 +55,8 @@ private:
     virtual void on_body(stomptalk::parser_hook& hook,
         const void* data, std::size_t size) noexcept override;
 
-    virtual void on_frame_end(stomptalk::parser_hook&, const char*) noexcept override;
+    virtual void on_frame_end(stomptalk::parser_hook&,
+                              const char*) noexcept override;
 
     void exec_on_error() noexcept;
     void exec_on_logon() noexcept;
