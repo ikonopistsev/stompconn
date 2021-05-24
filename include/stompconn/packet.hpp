@@ -39,20 +39,115 @@ public:
         return !error();
     }
 
-    bool must_ack() const noexcept
-    {
-        return !get(stomptalk::header::tag::ack()).empty();
-    }
-
     template<class T>
-    std::string_view get(T) const noexcept
+    auto get(T) const noexcept
     {
         return header_.get(T());
     }
 
-    std::string_view get(std::string_view key) const noexcept
+    auto get(std::string_view key) const noexcept
     {
         return header_.get(key);
+    }
+
+    auto get_content_type() const noexcept
+    {
+        return get(stomptalk::header::tag::content_type());
+    }
+
+    auto get_content_encoding() const noexcept
+    {
+        return get(stomptalk::header::tag::content_encoding());
+    }
+
+    auto get_correlation_id() const noexcept
+    {
+        return get(stomptalk::header::tag::correlation_id());
+    }
+
+    auto get_reply_to() const noexcept
+    {
+        return get(stomptalk::header::tag::reply_to());
+    }
+
+    auto get_expires() const noexcept
+    {
+        return get(stomptalk::header::tag::expires());
+    }
+
+    auto get_message_id() const noexcept
+    {
+        return get(stomptalk::header::tag::message_id());
+    }
+
+    auto get_amqp_type() const noexcept
+    {
+        return get(stomptalk::header::tag::amqp_type());
+    }
+
+    auto get_amqp_message_id() const noexcept
+    {
+        return get(stomptalk::header::tag::amqp_message_id());
+    }
+
+    auto get_timestamp() const noexcept
+    {
+        return get(stomptalk::header::tag::timestamp());
+    }
+
+    auto get_user_id() const noexcept
+    {
+        return get(stomptalk::header::tag::user_id());
+    }
+
+    auto get_app_id() const noexcept
+    {
+        return get(stomptalk::header::tag::app_id());
+    }
+
+    auto get_cluster_id() const noexcept
+    {
+        return get(stomptalk::header::tag::cluster_id());
+    }
+
+    auto get_ack() const noexcept
+    {
+        return get(stomptalk::header::tag::ack());
+    }
+
+    auto get_subscription() const noexcept
+    {
+        return get(stomptalk::header::tag::subscription());
+    }
+
+    auto get_destination() const noexcept
+    {
+        return get(stomptalk::header::tag::destination());
+    }
+
+    auto get_id() const noexcept
+    {
+        return get(stomptalk::header::tag::id());
+    }
+
+    auto get_transaction() const noexcept
+    {
+        return get(stomptalk::header::tag::transaction());
+    }
+
+    auto get_receipt() const noexcept
+    {
+        return get(stomptalk::header::tag::receipt());
+    }
+
+    auto get_receipt_id() const noexcept
+    {
+        return get(stomptalk::header::tag::receipt_id());
+    }
+
+    bool must_ack() const noexcept
+    {
+        return !get_ack().empty();
     }
 
     std::string_view session() const noexcept
