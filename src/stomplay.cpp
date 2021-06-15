@@ -288,5 +288,5 @@ void stomplay::unsubscribe(std::string_view text_id)
 {
     auto id = stomptalk::antoull(text_id);
     if (id > 0)
-        subscription_.remove(id);
+        subscription_.remove(static_cast<std::size_t>(id));
 }

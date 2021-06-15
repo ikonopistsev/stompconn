@@ -32,7 +32,7 @@ void connection::setup_write_timeout(std::size_t timeout, double tolerant)
         // because of timing inaccuracies, the receiver
         // SHOULD be tolerant and take into account an error margin
         // они должны быть толерантными
-        timeout *= tolerant;
+        timeout = static_cast<std::size_t>(timeout * tolerant);
         timeout_.add(std::chrono::milliseconds(timeout));
     }
 }
@@ -44,7 +44,7 @@ void connection::setup_read_timeout(std::size_t timeout, double tolerant)
         // because of timing inaccuracies, the receiver
         // SHOULD be tolerant and take into account an error margin
         // нужно быть толерантным
-        timeout *= tolerant;
+        timeout = static_cast<std::size_t>(timeout * tolerant);
         auto tv = btpro::make_timeval(
             std::chrono::milliseconds(timeout));
         bev_.set_timeout(&tv, nullptr);
