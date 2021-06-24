@@ -334,16 +334,18 @@ void connection::send(stompconn::logon frame, stomplay::fun_type real_fn)
     frame.write(bev_);
 }
 
-void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
+std::size_t connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
 {
     assert(fn);
 
     // получаем обработчик подписки
-    stomplay_.add_handler(frame, std::move(fn));
+    auto subs_id = stomplay_.add_subscribe(frame, std::move(fn));
 
     setup_write_timeout(write_timeout_);
 
     frame.write(bev_);
+
+    return subs_id;
 }
 
 void connection::send(stompconn::send frame, stomplay::fun_type fn)

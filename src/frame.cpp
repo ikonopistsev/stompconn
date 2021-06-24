@@ -144,10 +144,11 @@ subscribe::subscribe(std::string_view destination, fn_type fn)
     push(stomptalk::header::destination(destination));
 }
 
-void subscribe::add_subscribe(subscription_handler& handler)
+std::size_t subscribe::add_subscribe(subscription_handler& handler)
 {
     auto subs_id = handler.create(std::move(fn_));
     push(stomptalk::header::id(subs_id));
+    return subs_id;
 }
 
 void body_frame::payload(btpro::buffer payload)

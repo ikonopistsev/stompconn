@@ -202,7 +202,7 @@ public:
 
     void send(stompconn::logon frame, stomplay::fun_type fn);
 
-    void send(stompconn::subscribe frame, stomplay::fun_type fn);
+    std::size_t send(stompconn::subscribe frame, stomplay::fun_type fn);
 
     void send(stompconn::ack frame, stomplay::fun_type fn);
 

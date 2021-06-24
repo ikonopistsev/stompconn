@@ -68,7 +68,8 @@ private:
 public:
     subscribe(std::string_view destination, fn_type fn);
 
-    void add_subscribe(subscription_handler& handler);
+    // возвращает идентификатор подписки
+    std::size_t add_subscribe(subscription_handler& handler);
 };
 
 class body_frame

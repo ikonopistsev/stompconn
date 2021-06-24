@@ -103,10 +103,11 @@ public:
         return add_receipt(frame, std::move(fn));
     }
 
-    std::string_view add_handler(subscribe &frame, fun_type fn)
+    std::size_t add_subscribe(subscribe &frame, fun_type fn)
     {
-        frame.add_subscribe(subscription_);
-        return add_receipt(frame, std::move(fn));
+        auto subs_id = frame.add_subscribe(subscription_);
+        add_receipt(frame, std::move(fn));
+        return subs_id;
     }
 
     void unsubscribe(std::string_view id);
