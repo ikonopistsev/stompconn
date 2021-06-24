@@ -23,7 +23,7 @@ void connection::setup_write_timeout(std::size_t timeout, double tolerant)
 {
     if (timeout)
     {
-        if (!timeout_.initialized())
+        if (timeout_.empty())
         {
             timeout_.create(queue_, EV_PERSIST|EV_TIMEOUT,
                 proxy<connection>::heart_beat, this);
@@ -157,6 +157,7 @@ void connection::exec_event_fun(short what) noexcept
 void connection::create()
 {
     bev_.destroy();
+    timeout_.destroy();
 
     bev_.create(queue_, btpro::socket());
 
@@ -230,8 +231,7 @@ void connection::disconnect() noexcept
 {
     try
     {
-        if (timeout_.initialized())
-            timeout_.remove();
+        timeout_.destroy();
 
         stomplay_.logout();
 

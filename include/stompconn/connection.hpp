@@ -19,7 +19,7 @@ public:
 private:
     btpro::queue_ref queue_{};
     btpro::tcp::bev bev_{};
-    btpro::evs timeout_{};
+    btpro::evh timeout_{};
     std::size_t write_timeout_{};
     std::size_t read_timeout_{};
 
