@@ -1,6 +1,8 @@
 #include "stompconn/connection.hpp"
 #include <random>
+#ifdef STOMPCONN_DEBUG
 #include <iostream>
+#endif
 
 using namespace stompconn;
 
@@ -67,7 +69,7 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
             auto ptr = reinterpret_cast<const char*>(
                 input.pullup(static_cast<ev_ssize_t>(needle)));
 
-#ifdef DEBUG
+#ifdef STOMPCONN_DEBUG
             if ((needle < 2) && ((ptr[0] == '\n') || (ptr[0] == '\r')))
                 std::cout << "recv ping" << std::endl;
 #endif // DEBUG
@@ -79,7 +81,7 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
             // дисконнектимся
             if (rc < needle)
             {
-#ifdef DEBUG
+#ifdef STOMPCONN_DEBUG
                 std::cerr << "stomplay parse: "
                           << stomplay_.error_str() << std::endl;
 #endif
@@ -87,16 +89,18 @@ void connection::do_recv(btpro::buffer_ref input) noexcept
                 input.drain(input.size());
                 // вызываем ошибку
                 do_evcb(BEV_EVENT_ERROR);
+                return;
             }
             else
             {
                 // очищаем input
                 // сколько пропарсили
                 input.drain(rc);
+
+                // перезаводим таймер чтения
+                setup_read_timeout(read_timeout_);
             }
         }
-
-        setup_read_timeout(read_timeout_);
 
         return;
     }

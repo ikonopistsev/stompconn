@@ -46,6 +46,7 @@ private:
         static inline void recvcb(bufferevent *hbev, void *self) noexcept
         {
             assert(self);
+            assert(hbev);
             btpro::buffer_ref input(bufferevent_get_input(hbev));
             static_cast<A*>(self)->do_recv(std::move(input));
         }
@@ -124,6 +125,22 @@ public:
     }
 
     void disconnect() noexcept;
+
+    template<class F>
+    void disconnect(F fn) noexcept
+    {
+        try
+        {
+            queue_.once([this, fn](auto...) {
+                disconnect();
+                fn();
+            });
+        }
+        catch (...)
+        {
+            exec_error(std::current_exception());
+        }
+    }
 
     const std::string& session() const noexcept
     {
