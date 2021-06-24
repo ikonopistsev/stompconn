@@ -126,6 +126,9 @@ public:
 
     void disconnect() noexcept;
 
+
+    // асинхронное отключение
+    // допустим из собственных калбеков
     template<class F>
     void disconnect(F fn) noexcept
     {
@@ -134,6 +137,20 @@ public:
             queue_.once([this, fn](auto...) {
                 disconnect();
                 fn();
+            });
+        }
+        catch (...)
+        {
+            exec_error(std::current_exception());
+        }
+    }
+
+    void disconnect(nullptr_t) noexcept
+    {
+        try
+        {
+            queue_.once([this](auto...) {
+                disconnect();
             });
         }
         catch (...)
