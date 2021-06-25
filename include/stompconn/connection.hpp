@@ -134,8 +134,15 @@ public:
         try
         {
             queue_.once([this, fn](auto...) {
-                disconnect();
-                fn();
+                try
+                {
+                    disconnect();
+                    fn();
+                }
+                catch (...)
+                {
+                    exec_error(std::current_exception());
+                }
             });
         }
         catch (...)
