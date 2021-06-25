@@ -44,6 +44,11 @@ bool receipt_handler::call(std::string_view id, packet p) noexcept
     return false;
 }
 
+void receipt_handler::clear()
+{
+    receipt_.clear();
+}
+
 void subscription_handler::exec(iterator i, packet p) noexcept
 {
     try
@@ -66,7 +71,7 @@ std::size_t subscription_handler::create(fn_type fn)
     return subscription_seq_id_;
 }
 
-void subscription_handler::remove(std::size_t id)
+void subscription_handler::remove(std::size_t id) noexcept
 {
     subscription_.erase(id);
 }
@@ -81,4 +86,10 @@ bool subscription_handler::call(std::size_t id, packet p) noexcept
     }
 
     return false;
+}
+
+
+void subscription_handler::clear()
+{
+    subscription_.clear();
 }

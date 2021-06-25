@@ -13,6 +13,7 @@ public:
 protected:
     const header_store& header_;
     std::string_view session_{};
+    std::string_view subscription_id_{};
     stomptalk::method::generic method_{};
     btpro::buffer payload_{};
 
@@ -26,6 +27,11 @@ public:
         , method_(method)
     {
         payload.copyout(payload_);
+    }
+
+    void set_subscription_id(std::string_view subscription_id) noexcept
+    {
+        subscription_id_ = subscription_id;
     }
 
     bool error() const noexcept
@@ -117,7 +123,13 @@ public:
 
     auto get_subscription() const noexcept
     {
-        return get(stomptalk::header::tag::subscription());
+        auto rc = get(stomptalk::header::tag::subscription());
+        if (rc.empty())
+        {
+            // used for get id from subscribe receipt only!!
+            rc = subscription_id_;
+        }
+        return rc;
     }
 
     auto get_destination() const noexcept

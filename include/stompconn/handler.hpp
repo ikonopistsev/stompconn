@@ -27,6 +27,8 @@ public:
     std::string_view create(fn_type fn);
 
     bool call(std::string_view id, packet p) noexcept;
+
+    void clear();
 };
 
 class subscription_handler
@@ -47,7 +49,9 @@ public:
 
     bool call(std::size_t id, packet p) noexcept;
 
-    void remove(std::size_t id);
+    void remove(std::size_t id) noexcept;
+
+    void clear();
 };
 
 } // namespace stomptalk

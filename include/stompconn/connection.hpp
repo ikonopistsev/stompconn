@@ -46,7 +46,6 @@ private:
         static inline void recvcb(bufferevent *hbev, void *self) noexcept
         {
             assert(self);
-            assert(hbev);
             btpro::buffer_ref input(bufferevent_get_input(hbev));
             static_cast<A*>(self)->do_recv(std::move(input));
         }
@@ -236,7 +235,7 @@ public:
 
     void send(stompconn::logon frame, stomplay::fun_type fn);
 
-    std::size_t send(stompconn::subscribe frame, stomplay::fun_type fn);
+    void send(stompconn::subscribe frame, stomplay::fun_type fn);
 
     void send(stompconn::ack frame, stomplay::fun_type fn);
 

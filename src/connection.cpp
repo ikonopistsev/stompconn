@@ -338,7 +338,7 @@ void connection::send(stompconn::logon frame, stomplay::fun_type real_fn)
     frame.write(bev_);
 }
 
-std::size_t connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
+void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
 {
     assert(fn);
 
@@ -348,8 +348,6 @@ std::size_t connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
     setup_write_timeout(write_timeout_);
 
     frame.write(bev_);
-
-    return subs_id;
 }
 
 void connection::send(stompconn::send frame, stomplay::fun_type fn)

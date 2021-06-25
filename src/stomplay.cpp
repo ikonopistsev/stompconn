@@ -275,6 +275,8 @@ void stomplay::clear()
 void stomplay::logout()
 {
     session_.clear();
+    subscription_.clear();
+    receipt_.clear();
 }
 
 std::string_view stomplay::add_receipt(frame &frame, fun_type fn)
@@ -282,6 +284,36 @@ std::string_view stomplay::add_receipt(frame &frame, fun_type fn)
     auto receipt = receipt_.create(std::move(fn));
     frame.push(stomptalk::header::receipt(receipt));
     return receipt;
+}
+
+std::size_t stomplay::add_subscribe(subscribe& frame, fun_type fn)
+{
+    auto subs_id = frame.add_subscribe(subscription_);
+    add_receipt(frame, [this, subs_id, fn](auto packet) {
+        try
+        {
+            auto subscription_id = std::to_string(subs_id);
+            packet.set_subscription_id(subscription_id);
+
+            if (!packet)
+            {
+                // если не удалось подписаться 
+                // необходимо удалить подписку
+                subscription_.remove(subs_id);
+            }
+
+            fn(std::move(packet));
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "stomplay subscribe receipt: " << e.what() << std::endl;
+        }
+        catch (...)
+        {
+            std::cerr << "stomplay subscribe receipt" << std::endl;
+        }
+    });
+    return subs_id;
 }
 
 void stomplay::unsubscribe(std::string_view text_id)
