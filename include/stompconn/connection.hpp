@@ -151,20 +151,6 @@ public:
         }
     }
 
-    void disconnect(nullptr_t) noexcept
-    {
-        try
-        {
-            queue_.once([this](auto...) {
-                disconnect();
-            });
-        }
-        catch (...)
-        {
-            exec_error(std::current_exception());
-        }
-    }
-
     const std::string& session() const noexcept
     {
         return stomplay_.session();
