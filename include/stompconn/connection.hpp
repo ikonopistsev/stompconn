@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 
 #include "stompconn/stomplay.hpp"
 #include "stomptalk/basic_text.hpp"
@@ -17,7 +17,7 @@ public:
     using hex_text_type = stomptalk::basic_text<char, 20>;
 
 private:
-    btpro::queue_ref queue_{};
+    btpro::queue& queue_;
     btpro::tcp::bev bev_{};
     btpro::evh timeout_{};
     std::size_t write_timeout_{};
@@ -87,9 +87,9 @@ private:
     void exec_error(std::exception_ptr ex) noexcept;
 
 public:
-    connection(btpro::queue_ref queue,
+    connection(btpro::queue& queue,
                on_event_type evfn, on_connect_type connfn) noexcept
-        : queue_(std::move(queue))
+        : queue_(queue)
         , event_fun_(evfn)
         , on_connect_fun_(connfn)
     {
@@ -111,10 +111,10 @@ public:
         bev_.set_timeout(nullptr, &tv);
     }
 
-    void connect(btpro::dns_ref dns, const std::string& host, int port);
+    void connect(btpro::dns& dns, const std::string& host, int port);
 
     template<class Rep, class Period>
-    void connect(btpro::dns_ref dns, const std::string& host, int port,
+    void connect(btpro::dns& dns, const std::string& host, int port,
                  std::chrono::duration<Rep, Period> timeout)
     {
         connect(dns, host, port);
@@ -126,8 +126,8 @@ public:
     void disconnect() noexcept;
 
 
-    // асинхронное отключение
-    // допустим из собственных калбеков
+    // Р°СЃРёРЅС…СЂРѕРЅРЅРѕРµ РѕС‚РєР»СЋС‡РµРЅРёРµ
+    // РґРѕРїСѓСЃС‚РёРј РёР· СЃРѕР±СЃС‚РІРµРЅРЅС‹С… РєР°Р»Р±РµРєРѕРІ
     template<class F>
     void disconnect(F fn) noexcept
     {

@@ -206,7 +206,7 @@ void connection::connect(const btpro::ip::addr& addr)
     bev_.connect(addr);
 }
 
-void connection::connect(btpro::dns_ref dns, const std::string& host, int port)
+void connection::connect(btpro::dns& dns, const std::string& host, int port)
 {
     create();
 
