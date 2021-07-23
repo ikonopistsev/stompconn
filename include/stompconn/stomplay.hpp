@@ -106,6 +106,13 @@ public:
     std::size_t add_subscribe(subscribe& frame, fun_type fn);
 
     void unsubscribe(std::string_view id);
+
+    void unsubscribe(std::size_t id);
+
+    auto& subscription() const noexcept
+    {
+        return subscription_;
+    }
 };
 
 } // namespace stompconn

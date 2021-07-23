@@ -1,4 +1,4 @@
-#pragma once
+п»ї#pragma once
 
 #include "stomptalk/frame_base.hpp"
 #include "stomptalk/header_store.hpp"
@@ -68,7 +68,7 @@ private:
 public:
     subscribe(std::string_view destination, fn_type fn);
 
-    // возвращает идентификатор подписки
+    // РІРѕР·РІСЂР°С‰Р°РµС‚ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РїРѕРґРїРёСЃРєРё
     std::size_t add_subscribe(subscription_handler& handler);
 };
 

@@ -10,6 +10,7 @@ namespace stompconn {
 class connection
 {
 public:
+    using callback_type = std::function<void()>;
     using on_connect_type = std::function<void()>;
     using on_event_type = std::function<void(short)>;
     using on_error_type = std::function<void(std::exception_ptr)>;
@@ -86,6 +87,19 @@ private:
 
     void exec_error(std::exception_ptr ex) noexcept;
 
+    template<class F>
+    void exec(F fn) noexcept
+    {
+        try
+        {
+            fn();
+        }
+        catch (...)
+        {
+            exec_error(std::current_exception());
+        }
+    }
+
 public:
     connection(btpro::queue& queue,
                on_event_type evfn, on_connect_type connfn) noexcept
@@ -125,7 +139,6 @@ public:
 
     void disconnect() noexcept;
 
-
     // асинхронное отключение
     // допустим из собственных калбеков
     template<class F>
@@ -134,15 +147,10 @@ public:
         try
         {
             queue_.once([this, fn](auto...) {
-                try
-                {
+                exec([this, fn]{
                     disconnect();
                     fn();
-                }
-                catch (...)
-                {
-                    exec_error(std::current_exception());
-                }
+                });
             });
         }
         catch (...)
@@ -157,6 +165,34 @@ public:
     }
 
     void unsubscribe(std::string_view id, stomplay::fun_type fn);
+
+    template<class F>
+    void unsubscribe_all(F fn) noexcept
+    {
+        try
+        {
+            for (auto& s : stomplay_.subscription())
+            {
+                unsubscribe(std::to_string(s.first), [this, fn](auto) {
+                    exec(fn);
+                });
+            }
+        }
+        catch (...)
+        {
+            exec_error(std::current_exception());
+        }
+    }
+
+    template<class F>
+    void unsubscribe_logout(F fn) noexcept
+    {
+        unsubscribe_all([this, fn]{
+            logout([this, fn](auto){
+                exec(fn);
+            });
+        });
+    }
 
     // stomp DISCONNECT
     void logout(stomplay::fun_type fn);

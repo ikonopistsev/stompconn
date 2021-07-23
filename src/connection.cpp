@@ -343,7 +343,7 @@ void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
     assert(fn);
 
     // получаем обработчик подписки
-    auto subs_id = stomplay_.add_subscribe(frame, std::move(fn));
+    stomplay_.add_subscribe(frame, std::move(fn));
 
     setup_write_timeout(write_timeout_);
 

@@ -52,6 +52,26 @@ public:
     void remove(std::size_t id) noexcept;
 
     void clear();
+
+    auto begin() const noexcept
+    {
+        return subscription_.begin();
+    }
+
+    auto end() const noexcept
+    {
+        return subscription_.end();
+    }
+
+    auto empty() const noexcept
+    {
+        return subscription_.empty();
+    }
+
+    auto size() const noexcept
+    {
+        return subscription_.size();
+    }
 };
 
 } // namespace stomptalk

@@ -1,4 +1,4 @@
-#include "stompconn/stomplay.hpp"
+п»ї#include "stompconn/stomplay.hpp"
 #include "stomptalk/antoull.hpp"
 #include "stomptalk/sv.hpp"
 #include <iostream>
@@ -142,6 +142,11 @@ void stomplay::on_body(stomptalk::parser_hook& hook,
 void stomplay::on_frame_end(stomptalk::parser_hook&, const char*) noexcept
 {
 #ifndef NDEBUG
+    if (!session_.empty()) 
+    {
+        dump_ += '\n';
+        dump_ += session_;
+    }
     std::cout << "<< " <<  dump_ << std::endl << std::endl;
 #endif
     using namespace stomptalk::method;
@@ -296,11 +301,7 @@ std::size_t stomplay::add_subscribe(subscribe& frame, fun_type fn)
             packet.set_subscription_id(subscription_id);
 
             if (!packet)
-            {
-                // если не удалось подписаться 
-                // необходимо удалить подписку
                 subscription_.remove(subs_id);
-            }
 
             fn(std::move(packet));
         }
@@ -320,5 +321,10 @@ void stomplay::unsubscribe(std::string_view text_id)
 {
     auto id = stomptalk::antoull(text_id);
     if (id > 0)
-        subscription_.remove(static_cast<std::size_t>(id));
+        unsubscribe(static_cast<std::size_t>(id));
+}
+
+void stomplay::unsubscribe(std::size_t id)
+{
+    subscription_.remove(id);
 }
