@@ -174,7 +174,9 @@ public:
             for (auto& s : stomplay_.subscription())
             {
                 unsubscribe(std::to_string(s.first), [this, fn](auto) {
-                    exec(fn);
+                    auto& subs = stomplay_.subscription();
+                    if (subs.empty())
+                        exec(fn);
                 });
             }
         }
