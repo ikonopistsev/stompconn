@@ -1,4 +1,5 @@
 #include "stompconn/connection.hpp"
+#include "stompconn/conv.hpp"
 #include <random>
 #ifdef STOMPCONN_DEBUG
 #include <iostream>
@@ -47,13 +48,13 @@ void connection::setup_read_timeout(std::size_t timeout, double tolerant)
         // SHOULD be tolerant and take into account an error margin
         // нужно быть толерантным
         timeout = static_cast<std::size_t>(timeout * tolerant);
-        auto tv = btpro::make_timeval(
+        auto tv = detail::make_timeval(
             std::chrono::milliseconds(timeout));
         bev_.set_timeout(&tv, nullptr);
     }
 }
 
-void connection::do_recv(btpro::buffer_ref input) noexcept
+void connection::do_recv(buffer_ref input) noexcept
 {
     try
     {
@@ -163,7 +164,7 @@ void connection::create()
     bev_.destroy();
     timeout_.destroy();
 
-    bev_.create(queue_, btpro::socket());
+    bev_.create(queue_, -1);
 
     bev_.set(&proxy<connection>::recvcb,
         nullptr, &proxy<connection>::evcb, this);
@@ -199,14 +200,7 @@ connection::~connection()
     disconnect();
 }
 
-void connection::connect(const btpro::ip::addr& addr)
-{
-    create();
-
-    bev_.connect(addr);
-}
-
-void connection::connect(btpro::dns& dns, const std::string& host, int port)
+void connection::connect(evdns_base* dns, const std::string& host, int port)
 {
     create();
 
@@ -451,10 +445,10 @@ connection::text_id_type startup_hex_minutes_20201001() noexcept
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> distrib(0, 255);
-    btdef::conv::to_hex_print(rc,
+    to_hex_print(rc,
         static_cast<std::uint8_t>(distrib(gen)));
 
-    btdef::conv::to_hex_print(rc,
+    to_hex_print(rc,
         static_cast<std::uint64_t>(val));
     return rc;
 }
@@ -463,7 +457,7 @@ connection::text_id_type startup_hex_minutes_20201001() noexcept
 connection::hex_text_type connection::message_seq_id() noexcept
 {
     hex_text_type rc;
-    btdef::conv::to_hex_print(rc,
+    to_hex_print(rc,
         static_cast<std::uint64_t>(++message_seq_id_));
     return rc;
 }
@@ -472,7 +466,7 @@ connection::hex_text_type connection::message_seq_id() noexcept
 void connection::update_connection_id() noexcept
 {
     connection_id_.clear();
-    btdef::conv::to_hex_print(connection_id_,
+    to_hex_print(connection_id_,
         static_cast<std::uint64_t>(++connection_seq_id_));
     connection_id_ += '@';
     static const auto time = startup_hex_minutes_20201001();
@@ -497,11 +491,12 @@ void connection::send_heart_beat() noexcept
 {
     try
     {
+        using namespace std::literals;
         // if the sender has no real STOMP frame to send,
         // it MUST send an end-of-line (EOL)
         auto buf = bev_.output();
         if (buf.empty())
-            buf.append_ref(std::cref("\n"));
+            buf.append_ref("\n"sv);
 
 #ifdef DEBUG
         std::cout << "send ping" << std::endl;
@@ -522,4 +517,38 @@ void connection::exec_error(std::exception_ptr ex) noexcept
     }
     catch (...)
     {   }
+}
+
+template<class T>
+struct once
+{
+    static inline void call(evutil_socket_t, short, void* arg)
+    {
+        assert(arg);
+        auto fn = static_cast<T*>(arg);
+        try
+        {
+            (*fn)();
+        }
+        catch (...)
+        {   }
+
+        delete fn;
+    }
+};
+
+void create_once(event_base* queue, evutil_socket_t fd, 
+    short ef, timeval tv, connection::callback_type* fn)
+{
+    assert(queue);
+    auto res = event_base_once(queue, fd, ef, 
+        once<connection::callback_type>::call, fn, &tv);
+    if (-1 == res)
+        throw std::runtime_error("event_base_once");
+}
+
+void connection::once(timeval tv, callback_type fn)
+{
+    create_once(queue_, -1, EV_TIMEOUT, 
+        tv, new callback_type(std::move(fn)));
 }

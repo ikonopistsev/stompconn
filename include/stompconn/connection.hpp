@@ -1,9 +1,8 @@
 ﻿#pragma once
 
 #include "stompconn/stomplay.hpp"
+#include "stompconn/libevent.hpp"
 #include "stomptalk/basic_text.hpp"
-#include "btpro/tcp/bev.hpp"
-#include "btpro/evcore.hpp"
 
 namespace stompconn {
 
@@ -11,21 +10,21 @@ class connection
 {
 public:
     using callback_type = std::function<void()>;
-    using on_connect_type = std::function<void()>;
     using on_event_type = std::function<void(short)>;
     using on_error_type = std::function<void(std::exception_ptr)>;
     using text_id_type = stomptalk::basic_text<char, 64>;
     using hex_text_type = stomptalk::basic_text<char, 20>;
 
 private:
-    btpro::queue& queue_;
-    btpro::tcp::bev bev_{};
-    btpro::evh timeout_{};
+    
+    event_base* queue_{ };
+    bev bev_{};
+    ev timeout_{};
     std::size_t write_timeout_{};
     std::size_t read_timeout_{};
 
     on_event_type event_fun_{};
-    on_connect_type on_connect_fun_{};
+    callback_type on_connect_fun_{};
     on_error_type on_error_fun_{};
 
     stomplay stomplay_{};
@@ -47,7 +46,7 @@ private:
         static inline void recvcb(bufferevent *hbev, void *self) noexcept
         {
             assert(self);
-            btpro::buffer_ref input(bufferevent_get_input(hbev));
+            buffer_ref input(bufferevent_get_input(hbev));
             static_cast<A*>(self)->do_recv(std::move(input));
         }
 
@@ -64,7 +63,7 @@ private:
 
     void setup_read_timeout(std::size_t timeout, double tolerant = 1.3);
 
-    void do_recv(btpro::buffer_ref input) noexcept;
+    void do_recv(buffer_ref input) noexcept;
 
     void create();
 
@@ -101,39 +100,34 @@ private:
     }
 
 public:
-    connection(btpro::queue& queue,
-               on_event_type evfn, on_connect_type connfn) noexcept
-        : queue_(queue)
-        , event_fun_(evfn)
-        , on_connect_fun_(connfn)
+    struct async
     {
-        assert(evfn);
-        assert(connfn);
+        constexpr void operator()() const noexcept
+        {   }
+    };
+
+    connection(event_base* queue,
+               on_event_type event_fn, callback_type conn_fn) noexcept
+        : queue_(queue)
+        , event_fun_(event_fn)
+        , on_connect_fun_(conn_fn)
+    {
+        assert(queue);
+        assert(event_fn);
+        assert(conn_fn);
     }
 
     ~connection();
 
-    void connect(const btpro::ip::addr& addr);
+    void connect(evdns_base* dns, const std::string& host, int port);
 
     template<class Rep, class Period>
-    void connect(const btpro::ip::addr& addr,
-                 std::chrono::duration<Rep, Period> timeout)
-    {
-        connect(addr);
-
-        auto tv = btpro::make_timeval(timeout);
-        bev_.set_timeout(nullptr, &tv);
-    }
-
-    void connect(btpro::dns& dns, const std::string& host, int port);
-
-    template<class Rep, class Period>
-    void connect(btpro::dns& dns, const std::string& host, int port,
+    void connect(evdns_base* dns, const std::string& host, int port,
                  std::chrono::duration<Rep, Period> timeout)
     {
         connect(dns, host, port);
 
-        auto tv = btpro::make_timeval(timeout);
+        auto tv = detail::make_timeval(timeout);
         bev_.set_timeout(nullptr, &tv);
     }
 
@@ -146,7 +140,7 @@ public:
     {
         try
         {
-            queue_.once([this, fn](auto...) {
+            once([this, fn]{
                 exec([this, fn]{
                     disconnect();
                     fn();
@@ -186,11 +180,25 @@ public:
         }
     }
 
+    void once(timeval tv, callback_type fn);
+
+    void once(callback_type fn)
+    {
+        once(timeval{0, 0}, std::move(fn));
+    }
+
+    template<class Rep, class Period>
+    void once(std::chrono::duration<Rep, Period> timeout, callback_type fn)
+    {
+        auto tv = detail::make_timeval(timeout);
+        once(tv, std::move(fn));
+    }
+
     template<class F>
     void unsubscribe_logout(F fn) noexcept
     {
         unsubscribe_all([this, fn]{
-            logout([this, fn](auto){
+            logout([this, fn](auto) {
                 exec(fn);
             });
         });

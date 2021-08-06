@@ -1,9 +1,8 @@
 ﻿#pragma once
 
+#include "stompconn/libevent.hpp"
 #include "stomptalk/frame_base.hpp"
 #include "stomptalk/header_store.hpp"
-#include "btpro/buffer.hpp"
-#include "btpro/tcp/bev.hpp"
 
 namespace stompconn {
 
@@ -13,7 +12,7 @@ class frame
     : public stomptalk::frame_base
 {
 protected:
-    btpro::buffer data_{};
+    buffer data_{};
 
 public:
     frame() = default;
@@ -35,11 +34,11 @@ public:
     // complete frame before write
     virtual void complete();
 
-    virtual int write(btpro::socket sock);
+    virtual int write(evutil_socket_t sock);
 
-    virtual void write(btpro::tcp::bev& bev);
+    virtual void write(bev& bev);
 
-    virtual btpro::buffer data();
+    virtual buffer data();
 
     virtual std::string str() const;
 };
@@ -76,7 +75,7 @@ class body_frame
     : public frame
 {
 protected:
-    btpro::buffer payload_{};
+    buffer payload_{};
 
 public:
     body_frame() = default;
@@ -84,9 +83,9 @@ public:
     body_frame& operator=(body_frame&&) = default;
     virtual ~body_frame() = default;
 
-    void payload(btpro::buffer payload);
+    void payload(buffer payload);
 
-    void push_payload(btpro::buffer payload);
+    void push_payload(buffer payload);
 
     void push_payload(const char *data, std::size_t size);
 

@@ -274,7 +274,7 @@ void stomplay::clear()
     content_type_ = content_type_id::none;
     current_header_.clear();
     header_store_.clear();
-    recv_.reset(btpro::buffer());
+    recv_.reset(buffer());
 }
 
 void stomplay::logout()

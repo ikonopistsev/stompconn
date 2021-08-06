@@ -1,6 +1,5 @@
 #include "stompconn/handler.hpp"
-#include "btdef/conv/to_hex_text.hpp"
-#include <iostream>
+#include "stompconn/conv.hpp"
 
 using namespace stompconn;
 
@@ -19,7 +18,7 @@ void receipt_handler::exec(iterator i, packet p) noexcept
 std::string_view receipt_handler::create(fn_type fn)
 {
     hex_text_type hex_id;
-    btdef::conv::to_hex_print(hex_id, ++receipt_seq_id_);
+    to_hex_print(hex_id, ++receipt_seq_id_);
     auto& i = receipt_.emplace_front(std::cref(hex_id), std::move(fn));
     return stomptalk::sv(std::get<0>(i));
 }

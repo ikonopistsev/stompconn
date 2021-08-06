@@ -28,7 +28,7 @@ private:
     std::string current_header_{};
     content_type_id::type content_type_{content_type_id::none};
 
-    btpro::buffer recv_{};
+    buffer recv_{};
     fun_type on_logon_fn_{};
     fun_type on_error_fn_{};
     std::string session_{};

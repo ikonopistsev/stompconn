@@ -58,25 +58,25 @@ void frame::complete()
     data_.append("\n\n\0"sv);
 }
 
-int frame::write(btpro::socket sock)
+int frame::write(evutil_socket_t sock)
 {
     complete();
 
-    return data_.write(sock.fd());
+    return data_.write(sock);
 }
 
-void frame::write(btpro::tcp::bev& bev)
+void frame::write(bev& bev)
 {
     complete();
 
     bev.write(std::move(data_));
 }
 
-btpro::buffer frame::data()
+buffer frame::data()
 {
     complete();
 
-    return btpro::buffer(std::move(data_));
+    return buffer(std::move(data_));
 }
 
 std::string frame::str() const
@@ -151,12 +151,12 @@ std::size_t subscribe::add_subscribe(subscription_handler& handler)
     return subs_id;
 }
 
-void body_frame::payload(btpro::buffer payload)
+void body_frame::payload(buffer payload)
 {
     payload_ = std::move(payload);
 }
 
-void body_frame::push_payload(btpro::buffer payload)
+void body_frame::push_payload(buffer payload)
 {
     payload_.append(std::move(payload));
 }

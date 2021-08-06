@@ -1,7 +1,7 @@
 #pragma once
 
+#include "stompconn/libevent.hpp"
 #include "stomptalk/header_store.hpp"
-#include "btpro/buffer.hpp"
 
 namespace stompconn {
 
@@ -15,19 +15,18 @@ protected:
     std::string_view session_{};
     std::string_view subscription_id_{};
     stomptalk::method::generic method_{};
-    btpro::buffer payload_{};
+    buffer payload_{};
 
 public:
     packet(packet&&) = default;
 
     packet(const header_store& header, std::string_view session,
-        stomptalk::method::generic method, btpro::buffer_ref payload)
+        stomptalk::method::generic method, buffer payload)
         : header_(header)
         , session_(session)
         , method_(method)
-    {
-        payload.copyout(payload_);
-    }
+        , payload_(std::move(payload))
+    {   }
 
     void set_subscription_id(std::string_view subscription_id) noexcept
     {
@@ -172,17 +171,17 @@ public:
         return method_;
     }
 
-    btpro::buffer_ref payload() const noexcept
+    buffer_ref payload() const noexcept
     {
-        return payload_;
+        return buffer_ref(payload_);
     }
 
-    void copyout(btpro::buffer& other)
+    void copyout(buffer& other)
     {
         other.append(std::move(payload_));
     }
 
-    btpro::buffer_ref data() const noexcept
+    buffer_ref data() const noexcept
     {
         return payload();
     }
