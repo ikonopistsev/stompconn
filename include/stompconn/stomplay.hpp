@@ -36,7 +36,7 @@ private:
     receipt_handler receipt_{};
     subscription_handler subscription_{};
 
-#ifndef NDEBUG
+#ifdef STOMPCONN_DEBUG
     std::string dump_{};
 #endif
 

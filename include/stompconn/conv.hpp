@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string_view>
+#include <type_traits>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -8,8 +9,7 @@
 #include <arpa/inet.h>
 #endif // _WIN32
 
-namespace stompconn
-{
+namespace stompconn {
 
 static inline std::string_view to_hex(unsigned char val) noexcept
 {

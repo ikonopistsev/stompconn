@@ -29,8 +29,14 @@ void stomplay::on_method(stomptalk::parser_hook& hook,
 {
     try
     {
-#ifndef NDEBUG
+#ifdef STOMPCONN_DEBUG
         dump_ = method;
+        if (!session_.empty()) 
+        {
+            dump_ += ' ';
+            dump_ += '@';
+            dump_ += session_;
+        }
 #endif
         using namespace stomptalk::method;
 
@@ -59,7 +65,7 @@ void stomplay::on_hdr_key(stomptalk::parser_hook& hook,
 {
     try
     {
-#ifndef NDEBUG
+#ifdef STOMPCONN_DEBUG
         dump_ += '\n';
         dump_ += text;
 #endif
@@ -85,7 +91,7 @@ void stomplay::on_hdr_val(stomptalk::parser_hook& hook,
 {
     try
     {
-#ifndef NDEBUG
+#ifdef STOMPCONN_DEBUG
         dump_ += ':';
         dump_ += val;
 #endif
@@ -120,7 +126,7 @@ void stomplay::on_body(stomptalk::parser_hook& hook,
 {
     try
     {
-#ifndef NDEBUG
+#ifdef STOMPCONN_DEBUG
         dump_ += '\n';
         dump_ += std::string(reinterpret_cast<const char*>(data), size);
 #endif
@@ -141,12 +147,7 @@ void stomplay::on_body(stomptalk::parser_hook& hook,
 
 void stomplay::on_frame_end(stomptalk::parser_hook&, const char*) noexcept
 {
-#ifndef NDEBUG
-    if (!session_.empty()) 
-    {
-        dump_ += '\n';
-        dump_ += session_;
-    }
+#ifdef STOMPCONN_DEBUG
     std::cout << "<< " <<  dump_ << std::endl << std::endl;
 #endif
     using namespace stomptalk::method;

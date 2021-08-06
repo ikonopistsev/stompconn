@@ -203,8 +203,13 @@ connection::~connection()
 void connection::connect(evdns_base* dns, const std::string& host, int port)
 {
     create();
-
     bev_.connect(dns, host, port);
+}
+
+void connection::connect(evdns_base* dns, const std::string& host, int port, timeval timeout)
+{
+    connect(dns, host, port);
+    bev_.set_timeout(nullptr, &timeout);
 }
 
 void connection::unsubscribe(std::string_view id, stomplay::fun_type real_fn)
@@ -275,22 +280,6 @@ void connection::ack(const packet& p,
     send(std::move(frame), std::move(fn));
 }
 
-void connection::ack(const packet& p, stomplay::fun_type fn)
-{
-    assert(fn);
-
-    send(stompconn::ack(get_ack_id(p)), std::move(fn));
-}
-
-void connection::ack(const packet& p, bool with_transaction_id)
-{
-    stompconn::ack frame(get_ack_id(p));
-    if (with_transaction_id)
-        add_tranaction_id(frame, p);
-
-    send(std::move(frame));
-}
-
 void connection::nack(const packet& p,
     bool with_transaction_id, stomplay::fun_type fn)
 {
@@ -301,22 +290,6 @@ void connection::nack(const packet& p,
         add_tranaction_id(frame, p);
 
     send(std::move(frame), std::move(fn));
-}
-
-void connection::nack(const packet& p, stomplay::fun_type fn)
-{
-    assert(fn);
-
-    send(stompconn::nack(get_ack_id(p)), std::move(fn));
-}
-
-void connection::nack(const packet& p, bool with_transaction_id)
-{
-    stompconn::nack frame(get_ack_id(p));
-    if (with_transaction_id)
-        add_tranaction_id(frame, p);
-
-    send(std::move(frame));
 }
 
 void connection::send(stompconn::logon frame, stomplay::fun_type real_fn)
@@ -431,8 +404,8 @@ void connection::on_except(on_error_type fn)
     on_error_fun_ = std::move(fn);
 }
 
-// число минут с 2020 года
-connection::text_id_type startup_hex_minutes_20201001() noexcept
+// minutes from 2020-01-01 as hex string
+connection::text_id_type startup_hex_minutes_20200101() noexcept
 {
     using namespace std::chrono;
     constexpr auto t0 = 1577836800u / 60u;
@@ -469,7 +442,7 @@ void connection::update_connection_id() noexcept
     to_hex_print(connection_id_,
         static_cast<std::uint64_t>(++connection_seq_id_));
     connection_id_ += '@';
-    static const auto time = startup_hex_minutes_20201001();
+    static const auto time = startup_hex_minutes_20200101();
     connection_id_ += time;
 }
 
@@ -498,7 +471,7 @@ void connection::send_heart_beat() noexcept
         if (buf.empty())
             buf.append_ref("\n"sv);
 
-#ifdef DEBUG
+#ifdef STOMPCONN_DEBUG
         std::cout << "send ping" << std::endl;
 #endif
     }
@@ -519,36 +492,8 @@ void connection::exec_error(std::exception_ptr ex) noexcept
     {   }
 }
 
-template<class T>
-struct once
-{
-    static inline void call(evutil_socket_t, short, void* arg)
-    {
-        assert(arg);
-        auto fn = static_cast<T*>(arg);
-        try
-        {
-            (*fn)();
-        }
-        catch (...)
-        {   }
-
-        delete fn;
-    }
-};
-
-void create_once(event_base* queue, evutil_socket_t fd, 
-    short ef, timeval tv, connection::callback_type* fn)
-{
-    assert(queue);
-    auto res = event_base_once(queue, fd, ef, 
-        once<connection::callback_type>::call, fn, &tv);
-    if (-1 == res)
-        throw std::runtime_error("event_base_once");
-}
-
 void connection::once(timeval tv, callback_type fn)
 {
-    create_once(queue_, -1, EV_TIMEOUT, 
+    make_once(queue_, -1, EV_TIMEOUT, 
         tv, new callback_type(std::move(fn)));
 }

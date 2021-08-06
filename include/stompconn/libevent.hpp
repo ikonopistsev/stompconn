@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cassert>
 #include <stdexcept>
+#include <functional>
 #include <type_traits>
 
 #include "event2/dns.h"
@@ -91,16 +92,42 @@ class basic_buffer
     }
 
 public:
+    using this_type = basic_buffer<D>;
+
+    evbuffer* handle() const noexcept
+    {
+        return handle_.get();
+    }
+
+    operator evbuffer*() const noexcept
+    {
+        return handle();
+    }
+
     basic_buffer()
         : handle_(create(), D::free)
     {
-        static_assert(std::is_same<D, detail::buffer_destroy>::value);
+        static_assert(std::is_same<this_type, buffer>::value);
     }
+
+    // only for ref
+    explicit basic_buffer(const buffer_ref& other) noexcept
+        : handle_(other.handle(), D::free)
+    {   }
+
+    basic_buffer& operator=(const buffer_ref& other) noexcept
+    {
+        handle_.reset(other.handle());
+    }
+
+    basic_buffer(basic_buffer&&) = default;
+
+    basic_buffer& operator=(basic_buffer&&) = default;
 
     explicit basic_buffer(evbuffer* ptr) noexcept
         : handle_(ptr, D::free)
     {   
-        static_assert(std::is_same<D, detail::buffer_dismiss>::value);
+        static_assert(std::is_same<this_type, buffer_ref>::value);
         assert(ptr);
     }
 
@@ -144,17 +171,13 @@ public:
         append_ref(str_buf.data(), str_buf.size());
     }
 
-    auto handle() const noexcept
+    template<class T>
+    void append(std::reference_wrapper<T> str_ref)
     {
-        return handle_.get();
+        append_ref(str_ref.get());
     }
 
-    operator evbuffer*() const noexcept
-    {
-        return handle();
-    }
-
-        // Prepends data to the beginning of the evbuffer
+    // Prepends data to the beginning of the evbuffer
     void prepend(const void *data, std::size_t len)
     {
         assert((nullptr != data) && len);
@@ -299,8 +322,6 @@ class bev
 private:
     bufferevent* handle_{ nullptr };
 
-    static void check_result(const char *what, int result);
-
     bufferevent* assert_handle() const noexcept;
 
     evbuffer* output_handle() const noexcept;
@@ -374,7 +395,7 @@ public:
 
     void write(const void *data, std::size_t size)
     {
-        check_result("bufferevent_write",
+        detail::check_result("bufferevent_write",
             bufferevent_write(assert_handle(), data, size));
     }
 
@@ -473,5 +494,28 @@ public:
 };
 
 timeval gettimeofday_cached(event_base* queue);
+
+template<class T>
+struct once
+{
+    static inline void call(evutil_socket_t, short, void* arg)
+    {
+        assert(arg);
+        auto fn = static_cast<T*>(arg);
+        try
+        {
+            (*fn)();
+        }
+        catch (...)
+        {   }
+
+        delete fn;
+    }
+};
+
+using callback_type = std::function<void()>;
+
+void make_once(event_base* queue, evutil_socket_t fd, 
+    short ef, timeval tv, callback_type* fn);
 
 } // namespace stompconn

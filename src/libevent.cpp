@@ -76,7 +76,6 @@ void bev::connect(const sockaddr* sa, ev_socklen_t len)
 
 void bev::connect(evdns_base* dns, int af, const std::string& hostname, int port)
 {
-    assert(dns);
     detail::check_result("bufferevent_socket_connect_hostname",
         bufferevent_socket_connect_hostname(assert_handle(), dns,
             af, hostname.c_str(), port));
@@ -133,4 +132,14 @@ timeval stompconn::gettimeofday_cached(event_base* queue)
     detail::check_result("event_base_gettimeofday_cached", 
         event_base_gettimeofday_cached(queue, &tv));
     return tv;
+}
+
+void stompconn::make_once(event_base* queue, evutil_socket_t fd, 
+    short ef, timeval tv, callback_type* fn)
+{
+    assert(fn);
+    assert(queue);
+    detail::check_result("event_base_once", 
+        event_base_once(queue, fd, ef, 
+            once<callback_type>::call, fn, &tv));
 }

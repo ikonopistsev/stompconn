@@ -9,7 +9,6 @@ namespace stompconn {
 class connection
 {
 public:
-    using callback_type = std::function<void()>;
     using on_event_type = std::function<void(short)>;
     using on_error_type = std::function<void(std::exception_ptr)>;
     using text_id_type = stomptalk::basic_text<char, 64>;
@@ -121,14 +120,25 @@ public:
 
     void connect(evdns_base* dns, const std::string& host, int port);
 
+    void connect(evdns_base* dns, const std::string& host, int port, timeval timeout);
+
+    void connect(const std::string& host, int port)
+    {
+        connect(nullptr, host, port);
+    }
+
     template<class Rep, class Period>
     void connect(evdns_base* dns, const std::string& host, int port,
                  std::chrono::duration<Rep, Period> timeout)
     {
-        connect(dns, host, port);
+        connect(dns, host, port, detail::make_timeval(timeout));
+    }
 
-        auto tv = detail::make_timeval(timeout);
-        bev_.set_timeout(nullptr, &tv);
+    template<class Rep, class Period>
+    void connect(const std::string& host, int port,
+        std::chrono::duration<Rep, Period> timeout)
+    {
+        connect(nullptr, host, port, timeout);
     }
 
     void disconnect() noexcept;
@@ -190,8 +200,7 @@ public:
     template<class Rep, class Period>
     void once(std::chrono::duration<Rep, Period> timeout, callback_type fn)
     {
-        auto tv = detail::make_timeval(timeout);
-        once(tv, std::move(fn));
+        once(detail::make_timeval(timeout), std::move(fn));
     }
 
     template<class F>
@@ -216,15 +225,17 @@ public:
     // with_transaction_id = false by default
     void ack(const packet& p, bool with_transaction_id, stomplay::fun_type fn);
 
-    void ack(const packet& p, stomplay::fun_type fn);
-
-    void ack(const packet& p, bool with_transaction_id = false);
+    void ack(const packet& p, stomplay::fun_type fn)
+    {
+        ack(p, false, std::move(fn));
+    }
 
     void nack(const packet& p, bool with_transaction_id, stomplay::fun_type fn);
 
-    void nack(const packet& p, stomplay::fun_type fn);
-
-    void nack(const packet& p, bool with_transaction_id = false);
+    void nack(const packet& p, stomplay::fun_type fn)
+    {
+        nack(p, false, std::move(fn));
+    }
 
     void begin(std::string_view transaction_id, stomplay::fun_type fn)
     {
