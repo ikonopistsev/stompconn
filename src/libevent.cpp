@@ -2,7 +2,15 @@
 
 using namespace stompconn;
 
-void detail::buffer_destroy::free(evbuffer* ptr) noexcept
+evbuffer* detail::mem_buffer::create()
+{
+    auto ptr = evbuffer_new();
+    if (!ptr)
+        throw std::runtime_error("evbuffer_new");
+    return ptr;
+}
+
+void detail::mem_buffer::free(evbuffer* ptr) noexcept
 {
     evbuffer_free(ptr);
 }

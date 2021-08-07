@@ -15,14 +15,21 @@
 namespace stompconn {
 namespace detail {
 
-struct buffer_dismiss {
+struct ref_buffer {
+
+constexpr static inline evbuffer* create()
+{
+    return nullptr;
+}
 
 constexpr static inline void free(evbuffer*) noexcept
 {   }
 
 };
 
-struct buffer_destroy {
+struct mem_buffer {
+
+static evbuffer* create();
 
 static void free(evbuffer* ptr) noexcept;
 
@@ -67,22 +74,13 @@ static timeval make_timeval(std::chrono::duration<Rep, Period> timeout) noexcept
 template<class D>
 class basic_buffer;
 
-using buffer = basic_buffer<detail::buffer_destroy>;
-using buffer_ref = basic_buffer<detail::buffer_dismiss>;
+using buffer = basic_buffer<detail::mem_buffer>;
+using buffer_ref = basic_buffer<detail::ref_buffer>;
 
 template<class D>
 class basic_buffer
 {
-    std::unique_ptr<evbuffer, decltype(&D::free)> 
-        handle_{ nullptr, D::free };
-
-    static inline auto create()
-    {
-        auto ptr = evbuffer_new();
-        if (!ptr)
-            throw std::runtime_error("evbuffer_new");
-        return ptr;
-    }
+    evbuffer* handle_{ D::create() };
 
     auto assert_handle() const noexcept
     {
@@ -96,7 +94,7 @@ public:
 
     evbuffer* handle() const noexcept
     {
-        return handle_.get();
+        return handle_;
     }
 
     operator evbuffer*() const noexcept
@@ -104,28 +102,60 @@ public:
         return handle();
     }
 
-    basic_buffer()
-        : handle_(create(), D::free)
+    operator buffer_ref() const noexcept
     {
-        static_assert(std::is_same<this_type, buffer>::value);
+        return buffer_ref(handle());
+    }
+
+    buffer data() noexcept
+    {
+        return buffer(std::move(*this));
+    }
+
+    buffer_ref ref() noexcept
+    {
+        return buffer_ref(*this);
+    }
+
+    basic_buffer() = default;
+
+    ~basic_buffer()
+    {
+        D::free(assert_handle());
     }
 
     // only for ref
-    explicit basic_buffer(const buffer_ref& other) noexcept
-        : handle_(other.handle(), D::free)
-    {   }
-
-    basic_buffer& operator=(const buffer_ref& other) noexcept
+    // this delete copy ctor for buffer&
+    basic_buffer(const buffer_ref& other) noexcept
+        : handle_(other.handle())
     {
-        handle_.reset(other.handle());
+        // copy only for refs
+        static_assert(std::is_same<this_type, buffer_ref>::value);
     }
 
-    basic_buffer(basic_buffer&&) = default;
+    // only for ref
+    // this delete copy ctor for buffer&
+    basic_buffer& operator=(const buffer_ref& other) noexcept
+    {
+        // copy only for refs
+        static_assert(std::is_same<this_type, buffer_ref>::value);
+        handle_ = other.handle();
+        return *this;
+    }
 
-    basic_buffer& operator=(basic_buffer&&) = default;
+    basic_buffer(basic_buffer&& other) noexcept
+    {
+        std::swap(handle_, other.handle_);
+    }
+
+    basic_buffer& operator=(basic_buffer&& other) noexcept
+    {
+        std::swap(handle_, other.handle_);
+        return *this;
+    }
 
     explicit basic_buffer(evbuffer* ptr) noexcept
-        : handle_(ptr, D::free)
+        : handle_(ptr)
     {   
         static_assert(std::is_same<this_type, buffer_ref>::value);
         assert(ptr);
