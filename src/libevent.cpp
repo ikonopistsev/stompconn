@@ -85,8 +85,8 @@ void bev::connect(const sockaddr* sa, ev_socklen_t len)
 void bev::connect(evdns_base* dns, int af, const std::string& hostname, int port)
 {
     detail::check_result("bufferevent_socket_connect_hostname",
-        bufferevent_socket_connect_hostname(assert_handle(), dns,
-            af, hostname.c_str(), port));
+        bufferevent_socket_connect_hostname(assert_handle(), 
+            dns, af, hostname.c_str(), port));
 }
 
 evutil_socket_t bev::fd() const noexcept
@@ -105,15 +105,34 @@ void bev::set_timeout(timeval *timeout_read, timeval *timeout_write)
     bufferevent_set_timeouts(assert_handle(), timeout_read, timeout_write);
 }
 
-void ev::deallocate(event* handle) noexcept
+ev::ev(ev&& other) noexcept
 {
-    event_del(handle);
-    event_free(handle);
+    std::swap(handle_, other.handle_);
 }
 
-void ev::destroy()
+ev& ev::operator=(ev&& other) noexcept
 {
-    handle_.reset();
+    std::swap(handle_, other.handle_);
+    return *this;
+}
+
+ev::~ev() noexcept
+{
+    if (handle_)
+        deallocate(handle_);
+}
+
+void ev::deallocate(event* ptr) noexcept
+{
+    assert(ptr);
+    event_del(ptr);
+    event_free(ptr);
+}
+
+void ev::destroy() noexcept
+{
+    deallocate(handle_);
+    handle_ = nullptr;
 }
 
 void ev::create(event_base* queue, evutil_socket_t fd, short ef,
@@ -122,7 +141,7 @@ void ev::create(event_base* queue, evutil_socket_t fd, short ef,
     auto handle = event_new(queue, fd, ef, fn, arg);
     if (!handle)
         throw std::runtime_error("event_new");
-    handle_.reset(handle);
+    handle_ = handle;
 }
 
 // !!! это не выполнить на следующем цикле очереди

@@ -17,7 +17,7 @@ namespace detail {
 
 struct ref_buffer {
 
-constexpr static inline evbuffer* create()
+constexpr static inline evbuffer* create() noexcept
 {
     return nullptr;
 }
@@ -464,8 +464,7 @@ class ev
 private:
     static void deallocate(event* ptr) noexcept;
 
-    std::unique_ptr<event, decltype(&deallocate)>
-        handle_{ nullptr, deallocate };
+    event* handle_{ nullptr };
 
     auto assert_handle() const noexcept
     {
@@ -475,8 +474,14 @@ private:
 
 public:
     ev() = default;
+    ev(ev&& other) noexcept;
+    ev& operator=(ev&& other) noexcept;
+    ~ev() noexcept;
 
-    void destroy();
+    ev(const ev&) = delete;
+    ev& operator=(const ev&) = delete;
+
+    void destroy() noexcept;
 
     void create(event_base* queue, evutil_socket_t fd, short ef,
         event_callback_fn fn, void *arg);
@@ -488,7 +493,7 @@ public:
 
     event* handle() const noexcept
     {
-        return handle_.get();
+        return handle_;
     }
 
     operator event*() const noexcept
