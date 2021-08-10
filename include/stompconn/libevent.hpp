@@ -104,29 +104,24 @@ public:
 
     operator buffer_ref() const noexcept
     {
+        return ref();
+    }
+
+    buffer_ref ref() const noexcept
+    {
         return buffer_ref(handle());
-    }
-
-    buffer data() noexcept
-    {
-        return buffer(std::move(*this));
-    }
-
-    buffer_ref ref() noexcept
-    {
-        return buffer_ref(*this);
     }
 
     basic_buffer() = default;
 
     ~basic_buffer()
     {
-        D::free(assert_handle());
+        D::free(handle());
     }
 
     // only for ref
     // this delete copy ctor for buffer&
-    basic_buffer(const buffer_ref& other) noexcept
+    basic_buffer(const basic_buffer& other) noexcept
         : handle_(other.handle())
     {
         // copy only for refs
@@ -135,7 +130,7 @@ public:
 
     // only for ref
     // this delete copy ctor for buffer&
-    basic_buffer& operator=(const buffer_ref& other) noexcept
+    basic_buffer& operator=(const basic_buffer& other) noexcept
     {
         // copy only for refs
         static_assert(std::is_same<this_type, buffer_ref>::value);
