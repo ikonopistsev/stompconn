@@ -1,4 +1,7 @@
 #include "stompconn/libevent.hpp"
+#ifdef EVENT__HAVE_OPENSSL
+#include "event2/bufferevent_ssl.h"
+#endif
 
 using namespace stompconn;
 
@@ -58,6 +61,19 @@ void bev::create(event_base* queue, evutil_socket_t fd, int opt)
         hbev != nullptr ? 0 : -1);
     attach(hbev);
 }
+
+#ifdef EVENT__HAVE_OPENSSL
+void bev::create(event_base* queue, evutil_socket_t fd, struct ssl_st *ssl, int opt)
+{
+    assert(ssl);
+    assert(queue);
+    auto hbev = bufferevent_openssl_socket_new(queue, 
+        fd, ssl, BUFFEREVENT_SSL_CONNECTING, opt);
+    detail::check_result("bufferevent_socket_new",
+        hbev != nullptr ? 0 : -1);
+    attach(hbev);
+}
+#endif
 
 void bev::destroy() noexcept
 {

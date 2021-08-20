@@ -173,6 +173,24 @@ void connection::create()
     read_timeout_ = 0;
 }
 
+#ifdef EVENT__HAVE_OPENSSL
+void connection::create(struct ssl_st *ssl)
+{
+    assert(ssl);
+
+    bev_.destroy();
+    timeout_.destroy();
+
+    bev_.create(queue_, -1, ssl);
+
+    bev_.set(&proxy<connection>::recvcb,
+        nullptr, &proxy<connection>::evcb, this);
+
+    write_timeout_ = 0;
+    read_timeout_ = 0;
+}
+#endif
+
 void connection::setup_heart_beat(const packet& logon)
 {
     auto h = logon.get(stomptalk::header::tag::heart_beat());

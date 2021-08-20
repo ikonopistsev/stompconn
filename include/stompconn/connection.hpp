@@ -66,6 +66,10 @@ private:
 
     void create();
 
+#ifdef EVENT__HAVE_OPENSSL
+    void create(struct ssl_st *ssl);
+#endif
+
     void exec_logon(const stomplay::fun_type& fn, packet p) noexcept;
 
     void exec_unsubscribe(const stomplay::fun_type& fn,

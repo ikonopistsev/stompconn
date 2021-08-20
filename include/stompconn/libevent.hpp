@@ -12,6 +12,10 @@
 #include "event2/buffer.h"
 #include "event2/bufferevent.h"
 
+#ifdef EVENT__HAVE_OPENSSL
+#include "event2/bufferevent_ssl.h"
+#endif
+
 namespace stompconn {
 namespace detail {
 
@@ -382,6 +386,11 @@ public:
 
     void create(event_base* queue, evutil_socket_t fd, 
         int opt = BEV_OPT_CLOSE_ON_FREE);
+
+#ifdef EVENT__HAVE_OPENSSL
+    void create(event_base* queue, evutil_socket_t fd, struct ssl_st *ssl,
+        int opt = BEV_OPT_CLOSE_ON_FREE);
+#endif
 
     void destroy() noexcept;
 

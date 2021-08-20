@@ -173,7 +173,7 @@ public:
 
     buffer_ref payload() const noexcept
     {
-        return buffer_ref(payload_);
+        return buffer_ref(payload_.handle());
     }
 
     void copyout(buffer& other)
