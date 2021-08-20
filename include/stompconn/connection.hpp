@@ -44,7 +44,7 @@ private:
         static inline void recvcb(bufferevent *hbev, void *self) noexcept
         {
             assert(self);
-            buffer_ref(bufferevent_get_input(hbev));
+            buffer_ref input(bufferevent_get_input(hbev));
             static_cast<A*>(self)->do_recv(std::move(input));
         }
 
