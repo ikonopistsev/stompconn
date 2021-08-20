@@ -15,14 +15,21 @@
 namespace stompconn {
 namespace detail {
 
-struct buffer_dismiss {
+struct ref_buffer {
+
+constexpr static inline evbuffer* create() noexcept
+{
+    return nullptr;
+}
 
 constexpr static inline void free(evbuffer*) noexcept
 {   }
 
 };
 
-struct buffer_destroy {
+struct mem_buffer {
+
+static evbuffer* create();
 
 static void free(evbuffer* ptr) noexcept;
 
@@ -67,24 +74,13 @@ static timeval make_timeval(std::chrono::duration<Rep, Period> timeout) noexcept
 template<class D>
 class basic_buffer;
 
-using buffer = basic_buffer<detail::buffer_destroy>;
-using buffer_ref = basic_buffer<detail::buffer_dismiss>;
+using buffer = basic_buffer<detail::mem_buffer>;
+using buffer_ref = basic_buffer<detail::ref_buffer>;
 
 template<class D>
 class basic_buffer
 {
-    using this_type = basic_buffer<D>;
-
-    std::unique_ptr<evbuffer, decltype(&D::free)> 
-        handle_{ nullptr, D::free };
-
-    static inline auto create()
-    {
-        auto ptr = evbuffer_new();
-        if (!ptr)
-            throw std::runtime_error("evbuffer_new");
-        return ptr;
-    }
+    evbuffer* handle_{ D::create() };
 
     auto assert_handle() const noexcept
     {
@@ -94,9 +90,11 @@ class basic_buffer
     }
 
 public:
+    using this_type = basic_buffer<D>;
+
     evbuffer* handle() const noexcept
     {
-        return handle_.get();
+        return handle_;
     }
 
     operator evbuffer*() const noexcept
@@ -104,43 +102,55 @@ public:
         return handle();
     }
 
-    basic_buffer()
-        : handle_(create(), D::free)
+    operator buffer_ref() const noexcept
     {
-        static_assert(std::is_same<this_type, buffer>::value);
+        return ref();
     }
 
-    basic_buffer(const buffer& other) noexcept
-        : handle_(other.handle(), D::free)
+    buffer_ref ref() const noexcept
     {
-        static_assert(std::is_same<this_type, buffer_ref>::value);
+        return buffer_ref(handle());
     }
 
-    basic_buffer& operator=(const buffer& other) noexcept
+    basic_buffer() = default;
+
+    ~basic_buffer()
     {
-        static_assert(std::is_same<this_type, buffer_ref>::value);
-        handle_.reset(other.handle());
+        D::free(handle());
     }
 
     // only for ref
-    basic_buffer(const buffer_ref& other) noexcept
-        : handle_(other.handle(), D::free)
+    // this delete copy ctor for buffer&
+    basic_buffer(const basic_buffer& other) noexcept
+        : handle_(other.handle())
     {
-       static_assert(std::is_same<this_type, buffer_ref>::value);
-    }
-
-    basic_buffer& operator=(const buffer_ref& other) noexcept
-    {
+        // copy only for refs
         static_assert(std::is_same<this_type, buffer_ref>::value);
-        handle_.reset(other.handle());
     }
 
-    basic_buffer(basic_buffer&&) = default;
+    // only for ref
+    // this delete copy ctor for buffer&
+    basic_buffer& operator=(const basic_buffer& other) noexcept
+    {
+        // copy only for refs
+        static_assert(std::is_same<this_type, buffer_ref>::value);
+        handle_ = other.handle();
+        return *this;
+    }
 
-    basic_buffer& operator=(basic_buffer&&) = default;
+    basic_buffer(basic_buffer&& other) noexcept
+    {
+        std::swap(handle_, other.handle_);
+    }
+
+    basic_buffer& operator=(basic_buffer&& other) noexcept
+    {
+        std::swap(handle_, other.handle_);
+        return *this;
+    }
 
     explicit basic_buffer(evbuffer* ptr) noexcept
-        : handle_(ptr, D::free)
+        : handle_(ptr)
     {   
         static_assert(std::is_same<this_type, buffer_ref>::value);
         assert(ptr);
@@ -454,8 +464,7 @@ class ev
 private:
     static void deallocate(event* ptr) noexcept;
 
-    std::unique_ptr<event, decltype(&deallocate)>
-        handle_{ nullptr, deallocate };
+    event* handle_{ nullptr };
 
     auto assert_handle() const noexcept
     {
@@ -465,8 +474,14 @@ private:
 
 public:
     ev() = default;
+    ev(ev&& other) noexcept;
+    ev& operator=(ev&& other) noexcept;
+    ~ev() noexcept;
 
-    void destroy();
+    ev(const ev&) = delete;
+    ev& operator=(const ev&) = delete;
+
+    void destroy() noexcept;
 
     void create(event_base* queue, evutil_socket_t fd, short ef,
         event_callback_fn fn, void *arg);
@@ -478,7 +493,7 @@ public:
 
     event* handle() const noexcept
     {
-        return handle_.get();
+        return handle_;
     }
 
     operator event*() const noexcept
