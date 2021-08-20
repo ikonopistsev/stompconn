@@ -52,7 +52,7 @@ void frame::push_method(std::string_view method)
 
 void frame::complete()
 {
-#ifndef NDEBUG
+#ifdef STOMPCONN_DEBUG
     std::cout << str() << std::endl << std::endl;
 #endif
     data_.append("\n\n\0"sv);
@@ -83,32 +83,6 @@ std::string frame::str() const
 {
     return data_.str();
 }
-
-//void frame::write(btpro::socket sock)
-//{
-//    auto& frame = get();
-//    frame.complete();
-
-//#ifndef NDEBUG
-//    std::cout << str() << std::endl << std::endl;
-//#endif
-
-//    auto& iv = frame.layout();
-
-//    mmsghdr h = {};
-//    h.msg_hdr.msg_iov = iv.begin();
-//    h.msg_hdr.msg_iovlen= iv.size();
-
-//    auto rc = sendmmsg(sock, &h, 1, 0);
-//    if (-1 == rc)
-//    {
-//        throw std::system_error(
-//            std::error_code(errno, std::generic_category()),
-//                            "sendmmsg");
-//    }
-
-//    frame.drain(h.msg_len);
-//}
 
 logon::logon(std::string_view host,
     std::string_view login, std::string_view passcode)
@@ -174,7 +148,7 @@ void body_frame::complete()
         // дописываем размер
         push(stomptalk::header::content_length(size));
 
-#ifndef NDEBUG
+#ifdef STOMPCONN_DEBUG
         std::cout << str() << std::endl;
 #endif
         // дописываем разделитель хидеров и боди
