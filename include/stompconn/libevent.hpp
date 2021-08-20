@@ -73,6 +73,8 @@ using buffer_ref = basic_buffer<detail::buffer_dismiss>;
 template<class D>
 class basic_buffer
 {
+    using this_type = basic_buffer<D>;
+
     std::unique_ptr<evbuffer, decltype(&D::free)> 
         handle_{ nullptr, D::free };
 
@@ -92,8 +94,6 @@ class basic_buffer
     }
 
 public:
-    using this_type = basic_buffer<D>;
-
     evbuffer* handle() const noexcept
     {
         return handle_.get();
@@ -110,13 +110,28 @@ public:
         static_assert(std::is_same<this_type, buffer>::value);
     }
 
-    // only for ref
-    explicit basic_buffer(const buffer_ref& other) noexcept
+    basic_buffer(const buffer& other) noexcept
         : handle_(other.handle(), D::free)
-    {   }
+    {
+        static_assert(std::is_same<this_type, buffer_ref>::value);
+    }
+
+    basic_buffer& operator=(const buffer& other) noexcept
+    {
+        static_assert(std::is_same<this_type, buffer_ref>::value);
+        handle_.reset(other.handle());
+    }
+
+    // only for ref
+    basic_buffer(const buffer_ref& other) noexcept
+        : handle_(other.handle(), D::free)
+    {
+       static_assert(std::is_same<this_type, buffer_ref>::value);
+    }
 
     basic_buffer& operator=(const buffer_ref& other) noexcept
     {
+        static_assert(std::is_same<this_type, buffer_ref>::value);
         handle_.reset(other.handle());
     }
 

@@ -10,13 +10,12 @@ class connection
 {
 public:
     using on_event_type = std::function<void(short)>;
-    using on_error_type = std::function<void(std::exception_ptr)>;
     using text_id_type = stomptalk::basic_text<char, 64>;
     using hex_text_type = stomptalk::basic_text<char, 20>;
-
+    using on_error_type = stomplay::on_error_type;
 private:
     
-    event_base* queue_{ };
+    event_base* queue_{ nullptr };
     bev bev_{};
     ev timeout_{};
     std::size_t write_timeout_{};
@@ -45,7 +44,7 @@ private:
         static inline void recvcb(bufferevent *hbev, void *self) noexcept
         {
             assert(self);
-            buffer_ref input(bufferevent_get_input(hbev));
+            buffer_ref(bufferevent_get_input(hbev));
             static_cast<A*>(self)->do_recv(std::move(input));
         }
 

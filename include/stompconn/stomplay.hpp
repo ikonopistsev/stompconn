@@ -18,6 +18,8 @@ public:
     using fun_type = std::function<void(packet)>;
     using header_store = stomptalk::header_store;
     using text_type = stomptalk::basic_text<char, 20>;
+    using on_error_type = std::function<void(std::exception_ptr)>;
+
 private:
     stomptalk::parser stomp_{};
     stomptalk::parser_hook hook_{*this};
