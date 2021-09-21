@@ -173,6 +173,7 @@ void connection::create()
     read_timeout_ = 0;
 }
 
+#ifdef STOMPCONN_OPENSSL
 #ifdef EVENT__HAVE_OPENSSL
 void connection::create(struct ssl_st *ssl)
 {
@@ -189,6 +190,7 @@ void connection::create(struct ssl_st *ssl)
     write_timeout_ = 0;
     read_timeout_ = 0;
 }
+#endif
 #endif
 
 void connection::setup_heart_beat(const packet& logon)
