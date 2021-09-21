@@ -2,7 +2,9 @@
 
 #include <memory>
 #include <chrono>
+#include <string>
 #include <cassert>
+#include <algorithm>
 #include <stdexcept>
 #include <functional>
 #include <type_traits>
