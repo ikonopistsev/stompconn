@@ -147,8 +147,11 @@ void ev::deallocate(event* ptr) noexcept
 
 void ev::destroy() noexcept
 {
-    deallocate(handle_);
-    handle_ = nullptr;
+    if (handle_)
+    {
+        deallocate(handle_);
+        handle_ = nullptr;
+    }
 }
 
 void ev::create(event_base* queue, evutil_socket_t fd, short ef,
