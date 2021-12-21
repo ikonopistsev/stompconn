@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.7)
 
-project(stompconn VERSION 1.5.1 LANGUAGES CXX)
+project(stompconn VERSION 1.5.2 LANGUAGES CXX)
 
 option(STOMPCONN_DEBUG "show debug" OFF)
 option(STOMPCONN_LIBEVENT "add libevent" OFF)
 option(STOMPCONN_LIBRARY_STATIC "Set library type to STATIC" ON)
+option(STOMPCONN_OPENSSL "enable ssl" OFF)
 
 macro(use_cxx17)
   if (CMAKE_VERSION VERSION_LESS "3.8.2")
@@ -19,6 +20,10 @@ endmacro(use_cxx17)
 use_cxx17()
 
 add_definitions("-DSTOMPCONN_VERSION=${PROJECT_VERSION}")
+
+if (STOMPCONN_OPENSSL)
+    add_definitions("-DSTOMPCONN_OPENSSL")
+endif()
 
 if (WIN32)
   add_definitions("-DNOMINMAX")

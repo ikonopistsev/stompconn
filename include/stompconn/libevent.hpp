@@ -2,7 +2,9 @@
 
 #include <memory>
 #include <chrono>
+#include <string>
 #include <cassert>
+#include <algorithm>
 #include <stdexcept>
 #include <functional>
 #include <type_traits>
@@ -12,8 +14,10 @@
 #include "event2/buffer.h"
 #include "event2/bufferevent.h"
 
+#ifdef STOMPCONN_OPENSSL
 #ifdef EVENT__HAVE_OPENSSL
 #include "event2/bufferevent_ssl.h"
+#endif
 #endif
 
 namespace stompconn {
@@ -387,9 +391,11 @@ public:
     void create(event_base* queue, evutil_socket_t fd, 
         int opt = BEV_OPT_CLOSE_ON_FREE);
 
+#ifdef STOMPCONN_OPENSSL
 #ifdef EVENT__HAVE_OPENSSL
     void create(event_base* queue, evutil_socket_t fd, struct ssl_st *ssl,
         int opt = BEV_OPT_CLOSE_ON_FREE);
+#endif
 #endif
 
     void destroy() noexcept;
