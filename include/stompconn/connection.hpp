@@ -31,6 +31,7 @@ private:
     text_id_type connection_id_{};
 
     std::size_t message_seq_id_{};
+    bool connecting_{false};
 
     template<class A>
     struct proxy
@@ -315,6 +316,11 @@ public:
     void on_except(on_error_type fn);
 
     text_id_type create_message_id() noexcept;
+
+    bool connecting() const noexcept
+    {
+        return connecting_;
+    }
 };
 
 } // namespace stomptalk

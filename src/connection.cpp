@@ -11,6 +11,7 @@ void connection::do_evcb(short what) noexcept
 {
     if (what == BEV_EVENT_CONNECTED)
     {
+        connecting_ = false;
         bev_.enable(EV_READ);
         update_connection_id();
         on_connect_fun_();
@@ -222,6 +223,7 @@ void connection::connect(evdns_base* dns, const std::string& host, int port)
 {
     create();
     bev_.connect(dns, host, port);
+    connecting_ = true;
 }
 
 void connection::connect(evdns_base* dns, const std::string& host, int port, timeval timeout)
