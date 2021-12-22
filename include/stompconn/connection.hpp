@@ -149,6 +149,7 @@ public:
 
     // асинхронное отключение
     // допустим из собственных калбеков
+    // on_event не будет вызыван
     template<class F>
     void disconnect(F fn) noexcept
     {

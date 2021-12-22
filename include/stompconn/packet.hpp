@@ -196,18 +196,41 @@ public:
         return payload_.empty();
     }
 
-    std::string dump() const
+private:    
+    static void replace_all(std::string &str, const std::string& from, const std::string& to)
+    {
+        size_t start_pos = 0;
+        while((start_pos = str.find(from, start_pos)) != std::string::npos) 
+        {
+            str.replace(start_pos, from.length(), to);
+            start_pos += to.length();
+        }
+    }
+
+public:
+    std::string dump(char m = ' ', char p = ' ', char h = ';') const
     {
         std::string rc;
         auto method = method_.str();
-        auto header_dump = header_.dump();
+        auto header_dump = header_.dump(h);
         rc.reserve(method.size() + header_dump.size() + size() + 2);
         rc += method;
-        rc += '\n';
+        rc += m;
         rc += header_dump;
-        rc += '\n';
+        rc += p;
         if (!payload_.empty())
-            rc += payload_.str();
+        {
+            auto str = payload_.str();
+            // rabbitmq issue
+            replace_all(str, "\n", " ");
+            std::size_t sz = 0;
+            do {
+                sz = str.length();
+                replace_all(str, "  ", " ");
+            } while (sz != str.length());
+
+            rc += str;
+        }
         return rc;
     }
 };

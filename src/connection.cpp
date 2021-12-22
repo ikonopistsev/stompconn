@@ -9,17 +9,26 @@ using namespace stompconn;
 
 void connection::do_evcb(short what) noexcept
 {
+    connecting_ = false;
+
     if (what == BEV_EVENT_CONNECTED)
     {
-        connecting_ = false;
-        bev_.enable(EV_READ);
-        update_connection_id();
-        on_connect_fun_();
+        try
+        {
+            update_connection_id();
+            on_connect_fun_();
+            bev_.enable(EV_READ);
+        }
+        catch(...)
+        {
+            exec_error(std::current_exception());
+        }        
     }
     else
     {
-        exec_event_fun(what);
         disconnect();
+
+        exec_event_fun(what);
     }
 }
 
@@ -256,11 +265,14 @@ void connection::disconnect() noexcept
 {
     try
     {
+        connecting_ = false;
+
         timeout_.destroy();
 
         stomplay_.logout();
 
         bev_.destroy();
+
     }
     catch (...)
     {
