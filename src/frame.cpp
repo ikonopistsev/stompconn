@@ -65,11 +65,14 @@ int frame::write(evutil_socket_t sock)
     return data_.write(sock);
 }
 
-void frame::write(bev& bev)
+int frame::write(bev& bev)
 {
     complete();
 
+    auto sz = data_.size();
     bev.write(std::move(data_));
+    
+    return static_cast<int>(sz);
 }
 
 buffer frame::data()

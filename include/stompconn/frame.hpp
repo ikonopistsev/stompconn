@@ -36,7 +36,7 @@ public:
 
     virtual int write(evutil_socket_t sock);
 
-    virtual void write(bev& bev);
+    virtual int write(bev& bev);
 
     virtual buffer data();
 
