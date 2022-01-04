@@ -76,6 +76,7 @@ void connection::do_recv(buffer_ref input) noexcept
         {
             // сколько непрерывных данных мы имеем
             auto needle = input.contiguous_space();
+            bytes_readed_ += needle;
             // получаем указатель
             auto ptr = reinterpret_cast<const char*>(
                 input.pullup(static_cast<ev_ssize_t>(needle)));
@@ -258,7 +259,7 @@ void connection::unsubscribe(std::string_view id, stomplay::fun_type real_fn)
 
     setup_write_timeout(write_timeout_);
 
-    frame.write(bev_);
+    bytes_writed_ += frame.write(bev_);
 }
 
 void connection::disconnect() noexcept
@@ -266,11 +267,13 @@ void connection::disconnect() noexcept
     try
     {
         connecting_ = false;
+        bytes_readed_ = 0;
+        bytes_writed_ = 0;
 
         timeout_.destroy();
 
         stomplay_.logout();
-
+        
         bev_.destroy();
 
     }
@@ -289,7 +292,7 @@ void connection::logout(stomplay::fun_type fn)
 
     stomplay_.add_handler(frame, std::move(fn));
 
-    frame.write(bev_);
+    bytes_writed_ += frame.write(bev_);
 }
 
 // some helpers
@@ -336,7 +339,7 @@ void connection::send(stompconn::logon frame, stomplay::fun_type real_fn)
 
     setup_write_timeout(write_timeout_);
 
-    frame.write(bev_);
+    bytes_writed_ += frame.write(bev_);
 }
 
 void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
@@ -348,7 +351,7 @@ void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
 
     setup_write_timeout(write_timeout_);
 
-    frame.write(bev_);
+    bytes_writed_ += frame.write(bev_);
 }
 
 void connection::send(stompconn::send frame, stomplay::fun_type fn)
@@ -503,7 +506,11 @@ void connection::send_heart_beat() noexcept
         // it MUST send an end-of-line (EOL)
         auto buf = bev_.output();
         if (buf.empty())
-            buf.append_ref("\n"sv);
+        {
+            constexpr static auto nl = "\n"sv;
+            bytes_writed_ += nl.size();
+            buf.append_ref(nl);
+        }
 
 #ifdef STOMPCONN_DEBUG
         std::cout << "send ping" << std::endl;

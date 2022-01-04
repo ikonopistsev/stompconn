@@ -20,6 +20,8 @@ private:
     ev timeout_{};
     std::size_t write_timeout_{};
     std::size_t read_timeout_{};
+    std::size_t bytes_writed_{};
+    std::size_t bytes_readed_{};
 
     on_event_type event_fun_{};
     callback_type on_connect_fun_{};
@@ -309,7 +311,7 @@ public:
     {
         setup_write_timeout(write_timeout_);
 
-        frame.write(bev_);
+        bytes_writed_ += frame.write(bev_);
     }
 
     void on_error(stomplay::fun_type fn);
@@ -321,6 +323,16 @@ public:
     bool connecting() const noexcept
     {
         return connecting_;
+    }
+
+    std::size_t bytes_writed() const noexcept
+    {
+        return bytes_writed_;
+    }
+
+    std::size_t bytes_readed() const noexcept
+    {
+        return bytes_readed_;
     }
 };
 
