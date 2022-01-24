@@ -182,10 +182,16 @@ public:
     {
         try
         {
-            for (auto& s : stomplay_.subscription())
+            auto& subs = stomplay_.subscription();
+            if (subs.empty())
             {
-                unsubscribe(std::to_string(s.first), [this, fn](auto) {
-                    auto& subs = stomplay_.subscription();
+                exec(fn);
+                return;
+            }
+
+            for (auto& s : subs)
+            {
+                unsubscribe(std::to_string(s.first), [&, fn](auto) {
                     if (subs.empty())
                         exec(fn);
                 });
@@ -195,6 +201,12 @@ public:
         {
             exec_error(std::current_exception());
         }
+    }
+
+    template<class F>
+    void for_subscription(F fn) {
+        for (auto& s : stomplay_.subscription())
+            fn(s.first);
     }
 
     void once(timeval tv, callback_type fn);

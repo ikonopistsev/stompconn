@@ -234,13 +234,14 @@ public:
     }
 
     // Remove a specified number of bytes data from the beginning of an evbuffer.
-    std::size_t drain(std::string& text, std::size_t len)
+    std::size_t drain(std::string& text, std::size_t max_len)
     {
-        std::size_t sz = (std::min)(size(), len);
-        if (sz)
+        std::size_t total = (std::min)(size(), max_len);
+        if (total)
         {
-            text.assign(reinterpret_cast<char*>(pullup(sz)), sz);
-            return drain(sz);
+            text.resize(total);
+            copyout(text.data(), total);
+            drain(total);
         }
         return size();
     }
