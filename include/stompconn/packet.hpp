@@ -223,6 +223,8 @@ public:
             auto str = payload_.str();
             // rabbitmq issue
             replace_all(str, "\n", " ");
+            replace_all(str, "\r", " ");
+            replace_all(str, "\t", " ");
             std::size_t sz = 0;
             do {
                 sz = str.length();
