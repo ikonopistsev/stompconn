@@ -1,6 +1,6 @@
 ﻿#include "stompconn/stomplay.hpp"
 #include "stomptalk/antoull.hpp"
-#include "stomptalk/sv.hpp"
+#include "stomptalk/parser.h"
 #include <iostream>
 
 using namespace stompconn;
@@ -24,8 +24,8 @@ void stomplay::on_frame(stomptalk::parser_hook& hook, const char*) noexcept
     hook.generic_error();
 }
 
-void stomplay::on_method(stomptalk::parser_hook& hook,
-    std::string_view method) noexcept
+void stomplay::on_method(stomptalk::parser_hook& hook, 
+    std::uint64_t method_id, std::string_view method) noexcept
 {
     try
     {
@@ -38,11 +38,9 @@ void stomplay::on_method(stomptalk::parser_hook& hook,
             dump_ += session_;
         }
 #endif
-        using namespace stomptalk::method;
+        method_ = method_id;
 
-        method_.eval(method);
-
-        if (!method_.valid())
+        if (stomptalk_method_validate(method_id) == st_method_none)
             std::cerr << "stomplay method: " << method << " unknown" << std::endl;
 
         return;
@@ -60,8 +58,8 @@ void stomplay::on_method(stomptalk::parser_hook& hook,
     hook.generic_error();
 }
 
-void stomplay::on_hdr_key(stomptalk::parser_hook& hook,
-    std::string_view text) noexcept
+void stomplay::on_hdr_key(stomptalk::parser_hook& hook, 
+    std::uint64_t header_id, std::string_view text) noexcept
 {
     try
     {
@@ -69,8 +67,8 @@ void stomplay::on_hdr_key(stomptalk::parser_hook& hook,
         dump_ += '\n';
         dump_ += text;
 #endif
+        header_ = header_id;
         current_header_ = text;
-        header_.eval(text);
         return;
     }
     catch (const std::exception& e)
@@ -97,14 +95,7 @@ void stomplay::on_hdr_val(stomptalk::parser_hook& hook,
 #endif
         using namespace stomptalk::header;
 
-        auto num_id = header_.num_id();
-        if (num_id != num_id::none)
-            header_store_.set(num_id, header_.hash(), current_header_, val);
-        else
-            header_store_.set(current_header_, val);
-
-        if (num_id == tag::content_type::num)
-            content_type_ = tag::content_type::eval_content_type(val);
+        header_store_.set(header_, current_header_, val);
 
         return;
     }
@@ -152,27 +143,27 @@ void stomplay::on_frame_end(stomptalk::parser_hook&, const char*) noexcept
 #endif
     using namespace stomptalk::method;
 
-    switch (method_.num_id())
+    switch (method_)
     {
-    case tag::error::num:
+    case st_method_error:
         exec_on_error();
         break;
 
-    case tag::receipt::num: {
+    case st_method_receipt: {
         auto id = header_store_.get(stomptalk::header::tag::receipt_id());
         if (!id.empty())
             exec_on_receipt(id);
         break;
     }
 
-    case tag::message::num: {
+    case st_method_message: {
         auto subs = header_store_.get(stomptalk::header::tag::subscription());
         if (!subs.empty())
             exec_on_message(subs);
         break;
     }
 
-    case tag::connected::num:
+    case st_method_connected:
         exec_on_logon();
         break;
     }
@@ -270,9 +261,8 @@ void stomplay::exec_on_message(std::string_view text_id) noexcept
 
 void stomplay::clear()
 {
-    method_.reset();
-    header_.reset();
-    content_type_ = content_type_id::none;
+    method_ = st_method_none;
+    header_ = st_header_none;
     current_header_.clear();
     header_store_.clear();
     recv_.reset(buffer());

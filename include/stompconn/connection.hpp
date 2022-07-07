@@ -2,7 +2,7 @@
 
 #include "stompconn/stomplay.hpp"
 #include "stompconn/libevent.hpp"
-#include "stomptalk/basic_text.hpp"
+#include "stompconn/basic_text.hpp"
 
 namespace stompconn {
 
@@ -10,8 +10,8 @@ class connection
 {
 public:
     using on_event_type = std::function<void(short)>;
-    using text_id_type = stomptalk::basic_text<char, 64>;
-    using hex_text_type = stomptalk::basic_text<char, 20>;
+    using text_id_type = stompconn::basic_text<char, 64>;
+    using hex_text_type = stompconn::basic_text<char, 20>;
     using on_error_type = stomplay::on_error_type;
 private:
     

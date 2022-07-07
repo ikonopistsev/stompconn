@@ -14,14 +14,14 @@ protected:
     const header_store& header_;
     std::string_view session_{};
     std::string_view subscription_id_{};
-    stomptalk::method::generic method_{};
+    std::uint64_t method_{};
     buffer payload_{};
 
 public:
     packet(packet&&) = default;
 
     packet(const header_store& header, std::string_view session,
-        stomptalk::method::generic method, buffer payload)
+        std::uint64_t method, buffer payload)
         : header_(header)
         , session_(session)
         , method_(method)
@@ -35,8 +35,7 @@ public:
 
     bool error() const noexcept
     {
-        using namespace stomptalk::method;
-        return method_.num_id() == num_id::error;
+        return method_ == st_method_error;
     }
 
     operator bool() const noexcept
@@ -166,7 +165,7 @@ public:
         return session_;
     }
 
-    stomptalk::method::generic method() const noexcept
+    auto method() const noexcept
     {
         return method_;
     }
@@ -211,28 +210,28 @@ public:
     std::string dump(char m = ' ', char p = ' ', char h = ';') const
     {
         std::string rc;
-        auto method = method_.str();
-        auto header_dump = header_.dump(h);
-        rc.reserve(method.size() + header_dump.size() + size() + 2);
-        rc += method;
-        rc += m;
-        rc += header_dump;
-        rc += p;
-        if (!payload_.empty())
-        {
-            auto str = payload_.str();
-            // rabbitmq issue
-            replace_all(str, "\n", " ");
-            replace_all(str, "\r", " ");
-            replace_all(str, "\t", " ");
-            std::size_t sz = 0;
-            do {
-                sz = str.length();
-                replace_all(str, "  ", " ");
-            } while (sz != str.length());
+        // auto method = method_.str();
+        // auto header_dump = header_.dump(h);
+        // rc.reserve(method.size() + header_dump.size() + size() + 2);
+        // rc += method;
+        // rc += m;
+        // rc += header_dump;
+        // rc += p;
+        // if (!payload_.empty())
+        // {
+        //     auto str = payload_.str();
+        //     // rabbitmq issue
+        //     replace_all(str, "\n", " ");
+        //     replace_all(str, "\r", " ");
+        //     replace_all(str, "\t", " ");
+        //     std::size_t sz = 0;
+        //     do {
+        //         sz = str.length();
+        //         replace_all(str, "  ", " ");
+        //     } while (sz != str.length());
 
-            rc += str;
-        }
+        //     rc += str;
+        // }
         return rc;
     }
 };

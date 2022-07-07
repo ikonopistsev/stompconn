@@ -64,3 +64,5 @@ else()
 endif()
 
 target_include_directories(stompconn PUBLIC include)
+
+target_link_libraries(stompconn PRIVATE stomptalk)
