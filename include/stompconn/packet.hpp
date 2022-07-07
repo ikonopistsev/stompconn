@@ -2,8 +2,7 @@
 
 #include "stompconn/libevent.hpp"
 #include "stompconn/header_store.hpp"
-#include "stomptalk/method.h"
-#include "stomptalk/header.h"
+#include "stomptalk/parser.h"
 
 namespace stompconn {
 
@@ -204,25 +203,11 @@ private:
         }
     }
 
-    std::string_view method_str() const noexcept
-    {
-        using namespace std::literals;
-        switch (method_)
-        {
-        case st_method_connected: return "CONNECTED"sv;
-        case st_method_error: return "ERROR"sv;
-        case st_method_message: return "MESSAGE"sv;
-        case st_method_receipt: return "RECEIPT"sv;
-        default: ;
-        }
-        return "unknown"sv;
-    }
-
 public:
     std::string dump(char m = ' ', char p = ' ', char h = ';') const
     {
         std::string rc;
-        auto method = method_str();
+        std::string_view method{stomptalk_method_str(method_)};
         auto header_dump = header_.dump(h);
         rc.reserve(method.size() + header_dump.size() + size() + 2);
         rc += method;
