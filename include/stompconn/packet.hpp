@@ -204,32 +204,46 @@ private:
         }
     }
 
+    std::string_view method_str() const noexcept
+    {
+        using namespace std::literals;
+        switch (method_)
+        {
+        case st_method_connected: return "CONNECTED"sv;
+        case st_method_error: return "ERROR"sv;
+        case st_method_message: return "MESSAGE"sv;
+        case st_method_receipt: return "RECEIPT"sv;
+        default: ;
+        }
+        return "unknown"sv;
+    }
+
 public:
     std::string dump(char m = ' ', char p = ' ', char h = ';') const
     {
         std::string rc;
-        // auto method = method_.str();
-        // auto header_dump = header_.dump(h);
-        // rc.reserve(method.size() + header_dump.size() + size() + 2);
-        // rc += method;
-        // rc += m;
-        // rc += header_dump;
-        // rc += p;
-        // if (!payload_.empty())
-        // {
-        //     auto str = payload_.str();
-        //     // rabbitmq issue
-        //     replace_all(str, "\n", " ");
-        //     replace_all(str, "\r", " ");
-        //     replace_all(str, "\t", " ");
-        //     std::size_t sz = 0;
-        //     do {
-        //         sz = str.length();
-        //         replace_all(str, "  ", " ");
-        //     } while (sz != str.length());
+        auto method = method_str();
+        auto header_dump = header_.dump(h);
+        rc.reserve(method.size() + header_dump.size() + size() + 2);
+        rc += method;
+        rc += m;
+        rc += header_dump;
+        rc += p;
+        if (!payload_.empty())
+        {
+            auto str = payload_.str();
+            // rabbitmq issue
+            replace_all(str, "\n", " ");
+            replace_all(str, "\r", " ");
+            replace_all(str, "\t", " ");
+            std::size_t sz = 0;
+            do {
+                sz = str.length();
+                replace_all(str, "  ", " ");
+            } while (sz != str.length());
 
-        //     rc += str;
-        // }
+            rc += str;
+        }
         return rc;
     }
 };

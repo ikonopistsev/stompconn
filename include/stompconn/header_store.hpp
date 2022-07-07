@@ -91,7 +91,7 @@ public:
         });
     }
 
-    std::string dump() const
+    std::string dump(char sep = ' ') const
     {
        std::string rc;
        rc.reserve(320);
@@ -102,15 +102,11 @@ public:
             if (std::get<2>(t) == version_)
             {
                 if (!rc.empty())
-                    rc += ' ';
+                    rc += sep;
 
-                rc += '\"';
                 rc += std::get<0>(t);
-                rc += '\"';
                 rc += ':';
-                rc += '\"';
                 rc += std::get<1>(t);
-                rc += '\"';
             }
        }
 
