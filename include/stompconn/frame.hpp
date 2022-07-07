@@ -1,15 +1,16 @@
 ﻿#pragma once
 
 #include "stompconn/libevent.hpp"
-#include "stomptalk/frame_base.hpp"
-#include "stomptalk/header_store.hpp"
+#include "stompconn/header_store.hpp"
+#include "stompconn/method.hpp"
+#include "stompconn/header.hpp"
 
 namespace stompconn {
 
 class packet;
 class subscription_handler;
+
 class frame
-    : public stomptalk::frame_base
 {
 protected:
     buffer data_{};
@@ -21,16 +22,48 @@ public:
     frame(frame&&) = default;
     frame& operator=(frame&&) = default;
 
+    // выставить method
+    template<class V>
+    void push(method::known_ref<V> method)
+    {
+        push_method(method.value());
+    }
+
+    // выставить хидер
+    template<class K, class V>
+    void push(header::base<K, V> hdr)
+    {
+        push_header(hdr.key(), hdr.value());
+    }
+
+    // выставить известный хидер
+    // добавляем ключ как ссылку на строку
+    template<class K, class V>
+    void push(header::known<K, V> hdr)
+    {
+        push_header_val(hdr.key(), hdr.value());
+    }
+
+    // выставить известный хидер
+    // добавляем ключ как ссылку на строку
+    template<class K>
+    void push(header::known_ref<K> hdr)
+    {
+        push_header_ref(hdr.key_val());
+    }
+
+protected:
     // all non ref
-    void push_header(std::string_view key, std::string_view value) override;
+    virtual void push_header(std::string_view key, std::string_view value);
     // all ref
-    void push_header_ref(std::string_view prepared_key_value) override;
+    virtual void push_header_ref(std::string_view prepared_key_value);
     // key ref, val non ref
-    void push_header_val(std::string_view prepared_key,
-                         std::string_view value) override;
+    virtual void push_header_val(std::string_view prepared_key,
+                         std::string_view value);
 
-    void push_method(std::string_view method) override;
+    virtual void push_method(std::string_view method);
 
+public:
     // complete frame before write
     virtual void complete();
 

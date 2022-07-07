@@ -237,7 +237,7 @@ public:
 
     static auto get_ack_id(const packet& p) noexcept
     {
-        return p.get(stomptalk::header::tag::id());
+        return p.get_id();
     }
 
     // result is was asked or nacked :)
@@ -274,13 +274,13 @@ public:
     void commit(const packet& p, stomplay::fun_type fn)
     {
         assert(fn);
-        auto transaction_id = p.get(stomptalk::header::tag::transaction());
+        auto transaction_id = p.get_transaction();
         send(stompconn::commit(transaction_id), std::move(fn));
     }
 
     void commit(const packet& p)
     {
-        auto transaction_id = p.get(stomptalk::header::tag::transaction());
+        auto transaction_id = p.get_transaction();
         send(stompconn::commit(transaction_id));
     }
 
@@ -292,13 +292,13 @@ public:
     void abort(const packet& p, stomplay::fun_type fn)
     {
         assert(fn);
-        auto transaction_id = p.get(stomptalk::header::tag::transaction());
+        auto transaction_id = p.get_transaction();
         send(stompconn::abort(transaction_id), std::move(fn));
     }
 
     void abort(const packet& p)
     {
-        auto transaction_id = p.get(stomptalk::header::tag::transaction());
+        auto transaction_id = p.get_transaction();
         send(stompconn::abort(transaction_id));
     }
 

@@ -1,15 +1,14 @@
 #pragma once
 
 #include "stompconn/libevent.hpp"
-#include "stomptalk/header_store.hpp"
+#include "stompconn/header_store.hpp"
+#include "stomptalk/method.h"
+#include "stomptalk/header.h"
 
 namespace stompconn {
 
 class packet
 {
-public:
-    using header_store = stomptalk::header_store;
-
 protected:
     const header_store& header_;
     std::string_view session_{};
@@ -43,12 +42,6 @@ public:
         return !error();
     }
 
-    template<class T>
-    auto get(T) const noexcept
-    {
-        return header_.get(T());
-    }
-
     auto get(std::string_view key) const noexcept
     {
         return header_.get(key);
@@ -56,72 +49,72 @@ public:
 
     auto get_content_type() const noexcept
     {
-        return get(stomptalk::header::tag::content_type());
+        return header_.get(st_header_content_type);
     }
 
     auto get_content_encoding() const noexcept
     {
-        return get(stomptalk::header::tag::content_encoding());
+        return header_.get(st_header_content_encoding);
     }
 
     auto get_correlation_id() const noexcept
     {
-        return get(stomptalk::header::tag::correlation_id());
+        return header_.get(st_header_correlation_id);
     }
 
     auto get_reply_to() const noexcept
     {
-        return get(stomptalk::header::tag::reply_to());
+        return header_.get(st_header_reply_to);
     }
 
     auto get_expires() const noexcept
     {
-        return get(stomptalk::header::tag::expires());
+        return header_.get(st_header_expires);
     }
 
     auto get_message_id() const noexcept
     {
-        return get(stomptalk::header::tag::message_id());
+        return header_.get(st_header_message_id);
     }
 
     auto get_amqp_type() const noexcept
     {
-        return get(stomptalk::header::tag::amqp_type());
+        return header_.get(st_header_amqp_type);
     }
 
     auto get_amqp_message_id() const noexcept
     {
-        return get(stomptalk::header::tag::amqp_message_id());
+        return header_.get(st_header_amqp_message_id);
     }
 
     auto get_timestamp() const noexcept
     {
-        return get(stomptalk::header::tag::timestamp());
+        return header_.get(st_header_timestamp);
     }
 
     auto get_user_id() const noexcept
     {
-        return get(stomptalk::header::tag::user_id());
+        return header_.get(st_header_user_id);
     }
 
     auto get_app_id() const noexcept
     {
-        return get(stomptalk::header::tag::app_id());
+        return header_.get(st_header_app_id);
     }
 
     auto get_cluster_id() const noexcept
     {
-        return get(stomptalk::header::tag::cluster_id());
+        return header_.get(st_header_cluster_id);
     }
 
     auto get_ack() const noexcept
     {
-        return get(stomptalk::header::tag::ack());
+        return header_.get(st_header_ack);
     }
 
     auto get_subscription() const noexcept
     {
-        auto rc = get(stomptalk::header::tag::subscription());
+        auto rc = header_.get(st_header_subscription);
         if (rc.empty())
         {
             // used for get id from subscribe receipt only!!
@@ -132,27 +125,32 @@ public:
 
     auto get_destination() const noexcept
     {
-        return get(stomptalk::header::tag::destination());
+        return header_.get(st_header_destination);
     }
 
     auto get_id() const noexcept
     {
-        return get(stomptalk::header::tag::id());
+        return header_.get(st_header_id);
     }
 
     auto get_transaction() const noexcept
     {
-        return get(stomptalk::header::tag::transaction());
+        return header_.get(st_header_transaction);
     }
 
     auto get_receipt() const noexcept
     {
-        return get(stomptalk::header::tag::receipt());
+        return header_.get(st_header_receipt);
     }
 
     auto get_receipt_id() const noexcept
     {
-        return get(stomptalk::header::tag::receipt_id());
+        return header_.get(st_header_receipt_id);
+    }
+
+    auto get_heart_beat() const noexcept
+    {
+        return header_.get(st_header_heart_beat);
     }
 
     bool must_ack() const noexcept

@@ -206,7 +206,7 @@ void connection::create(struct ssl_st *ssl)
 
 void connection::setup_heart_beat(const packet& logon)
 {
-    auto h = logon.get(stomptalk::header::tag::heart_beat());
+    auto h = logon.get_heart_beat();
     if (!h.empty())
     {
         using namespace std::literals;
@@ -249,8 +249,8 @@ void connection::unsubscribe(std::string_view id, stomplay::fun_type real_fn)
     assert(real_fn);
 
     frame frame;
-    frame.push(stomptalk::method::unsubscribe());
-    frame.push(stomptalk::header::id(id));
+    frame.push(stompconn::method::unsubscribe());
+    frame.push(stompconn::header::id(id));
     stomplay_.add_receipt(frame,
         [this , id = std::string(id), fn = std::move(real_fn)](packet p) {
           // вызываем клиентский обработчик подписки
@@ -288,7 +288,7 @@ void connection::logout(stomplay::fun_type fn)
     assert(fn);
 
     frame frame;
-    frame.push(stomptalk::method::disconnect());
+    frame.push(stompconn::method::disconnect());
 
     stomplay_.add_handler(frame, std::move(fn));
 
@@ -298,10 +298,10 @@ void connection::logout(stomplay::fun_type fn)
 // some helpers
 static inline auto add_tranaction_id(stompconn::frame& frame, const packet& p)
 {
-    auto transaction_id = p.get(stomptalk::header::tag::transaction());
+    auto transaction_id = p.get_transaction();
     auto rc = !transaction_id.empty();
     if (rc)
-        frame.push(stomptalk::header::transaction(transaction_id));
+        frame.push(stompconn::header::transaction(transaction_id));
     return rc;
 }
 

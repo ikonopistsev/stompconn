@@ -3,6 +3,7 @@
 #include "stompconn/frame.hpp"
 #include "stompconn/handler.hpp"
 #include "stompconn/basic_text.hpp"
+#include "stompconn/header_store.hpp"
 #include "stomptalk/parser.hpp"
 #include "stomptalk/hook_base.hpp"
 
@@ -15,7 +16,6 @@ class stomplay final
 {
 public:
     using fun_type = std::function<void(packet)>;
-    using header_store = stomptalk::header_store;
     using text_type = basic_text<char, 20>;
     using on_error_type = std::function<void(std::exception_ptr)>;
 
@@ -44,13 +44,13 @@ private:
                           const char*) noexcept override;
 
     virtual void on_method(stomptalk::parser_hook& hook, 
-        std::uint64_t method_id, std::string_view method) noexcept override;
+        std::uint64_t method_id, const char* ptr, std::size_t size) noexcept override;
 
     virtual void on_hdr_key(stomptalk::parser_hook& hook, 
-        std::uint64_t header_id, std::string_view text) noexcept override;
+        std::uint64_t header_id, const char* ptr, std::size_t size) noexcept override;
 
     virtual void on_hdr_val(stomptalk::parser_hook& hook,
-        std::string_view val) noexcept override;
+        const char* ptr, std::size_t size) noexcept override;
 
     virtual void on_body(stomptalk::parser_hook& hook,
         const void* data, std::size_t size) noexcept override;
@@ -89,9 +89,9 @@ public:
         on_error_fn_ = std::move(fn);
     }
 
-    std::string_view error_str() const noexcept
+    const char* error_str() const noexcept
     {
-        return hook_.error_str();
+        return stomptalk_get_error_str(hook_.error());
     }
 
     void logout();
