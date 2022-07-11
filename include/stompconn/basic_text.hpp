@@ -23,7 +23,7 @@ namespace stompconn {
 #endif // STOMPTALK_64BIT == 1
 #endif // STOMPTALK_ALIGN
 
-template<class T, std::size_t L>
+template<class, std::size_t>
 class basic_text;
 
 template<std::size_t L>
@@ -31,67 +31,75 @@ class basic_text<char, L>
 {
 public:
     using value_type = char;
-    using size_type = std::size_t;
     using pointer = value_type*;
     using const_pointer = const value_type*;
-    using iterator = value_type*;
+    using reference = value_type&;
+    using const_reference = const value_type&;
+    using iterator =  value_type*;
     using const_iterator = const value_type*;
-    using string_view = std::basic_string_view<char>;
+    using size_type = std::size_t;
+    using difference_type = std::ptrdiff_t;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    using sv_type = std::basic_string_view<value_type>;
 
-    constexpr static std::size_t cache_size = STOMPTALK_ALIGN(L);
-    constexpr static std::size_t cache_capacity = cache_size - 1u;
+    enum {
+        cache_size = STOMPTALK_ALIGN(L),
+        cache_capacity = cache_size - 1
+    };
 
 private:
+    mutable value_type data_[cache_size];
     size_type size_{ };
-    value_type data_[cache_size];
+
+    static sv_type to_string_view(sv_type text) noexcept
+    {
+        return text;
+    }
+
+    struct sv_wrap
+    {
+        sv_type text_;
+        explicit sv_wrap(sv_type text) noexcept
+            : text_{text}
+        {   }
+    };
+
+    explicit basic_text(sv_wrap svw) noexcept
+        : basic_text{svw.text_.data(), svw.text_.size()}
+    {   }
 
 public:
     basic_text() = default;
-
-    basic_text(const basic_text& text) noexcept
-    {
-        assign(text);
-    }
-
-    basic_text& operator=(const basic_text& text) noexcept
-    {
-        assign(text);
-        return *this;
-    }
+    basic_text(const basic_text&) = default;
+    basic_text& operator=(const basic_text&) = default;
 
     basic_text(const_pointer value, size_type len) noexcept
     {
-        assert(len <= cache_size);
         assign(value, len);
     }
 
-    basic_text(string_view text) noexcept
+    template<typename T>
+    basic_text(const T& str) noexcept
+        : basic_text{sv_wrap{to_string_view(str)}}
+    {   }
+
+    basic_text(size_type len, value_type value) noexcept
     {
-        assert(text.size() <= cache_size);
-        assign(text.data(), text.size());
+        assign(len, value);
     }
 
-    template<std::size_t N>
-    basic_text(const basic_text<char, N>& text) noexcept
+    basic_text(const_pointer value) noexcept
     {
-        assert(text.size() <= cache_size);
-        assign(text.begin(), text.size());
+        assign(value);
     }
 
-    template<template<class, class...> class basic_other_string, class ...O>
-    basic_text(const basic_other_string<char, O...>& text) noexcept
+    size_type assign(const basic_text& other) noexcept
     {
-        assert(text.size() <= cache_size);
-        assign(text.data(), text.size());
-    }
-
-    size_type assign(const basic_text& text) noexcept
-    {
-        auto size = text.size();
-        size_ = size;
-        if (size)
-            std::memcpy(data_, text.data(), size);
-        return size;
+        size_ = other.size();
+        if (size_)
+            std::memcpy(data_, other.data(), size_);
+        return size_;
     }
 
     size_type assign(const_pointer value, size_type len) noexcept
@@ -109,28 +117,84 @@ public:
         return 0;
     }
 
-    size_type assign(string_view text) noexcept
-    {
-        return assign(text.begin(), text.size());
-    }
-
-    template<std::size_t N>
-    size_type assign(const basic_text<char, N>& text) noexcept
-    {
-        return assign(text.begin(), text.size());
-    }
-
-    template<template<class, class...> class basic_other_string, class ...O>
-    size_type assign(const basic_other_string<char, O...>& text) noexcept
-    {
-        return assign(text.begin(), text.size());
-    }
-
     size_type assign(value_type value) noexcept
     {
         size_ = 1;
         *data_ = value;
-        return 1;
+        return size_;
+    }
+
+    size_type assign(const_pointer value) noexcept
+    {
+        assert(value);
+        return assign(value, std::strlen(value));
+    }
+
+    template<class T>
+    size_type assign(const T& other) noexcept
+    {
+        sv_wrap wr{to_string_view(other)};
+        return assign(wr.text_.data(), wr.text_.size());
+    }
+
+    size_type assign(size_type n, char value) noexcept
+    {
+        if (n < cache_size)
+        {
+            size_ = n;
+            std::memset(data_, value, n);
+            return n;
+        }
+        return 0;
+    }
+
+    template<class T>
+    bool starts_with(const T& other) const noexcept
+    {
+        sv_wrap wr{to_string_view(other)};
+        auto size = wr.text_.size();
+        return (size_ >= size) &&
+            (std::memcmp(data_, wr.text_.data(), size) == 0);
+    }
+
+    template<class T>
+    bool ends_with(const T& other) const noexcept
+    {
+        sv_wrap wr{to_string_view(other)};
+        auto sz = wr.text_.size();
+        return (size_ >= sz) &&
+           (std::memcmp(data_ + (size_ - sz), wr.text_.data(), sz) == 0);
+    }
+
+    reference operator[](size_type i) noexcept
+    {
+        return data_[i];
+    }
+
+    const_reference operator[](size_type i) const noexcept
+    {
+        return data_[i];
+    }
+
+    basic_text& operator=(const_pointer value) noexcept
+    {
+        assign(value);
+        return *this;
+    }
+
+    operator sv_type() const noexcept
+    {
+        return sv_type{data(), size()};
+    }
+
+    size_type size() const noexcept
+    {
+        return size_;
+    }
+
+    bool empty() const noexcept
+    {
+        return !size_;
     }
 
     void clear() noexcept
@@ -138,126 +202,24 @@ public:
         size_ = 0;
     }
 
-    size_type free_size() const noexcept
+    reference front() noexcept
     {
-        return cache_capacity - size_;
+        return data_[0];
     }
 
-    size_type append(const_pointer value, size_type len) noexcept
+    const_reference front() const noexcept
     {
-        if (len <= free_size())
-        {
-            if (len)
-            {
-                assert(value);
-                std::memcpy(end(), value, len);
-                size_ += len;
-            }
-            return size_;
-        }
-        return 0;
+        return data_[0];
     }
 
-    size_type append(string_view other) noexcept
+    reference back() noexcept
     {
-        return append(other.begin(), other.size());
+        return data_[size_ - 1];
     }
 
-    template<std::size_t N>
-    size_type append(const basic_text<char, N>& other) noexcept
+    const_reference back() const noexcept
     {
-        return append(other.begin(), other.size());
-    }
-
-    template<class T>
-    size_type append(const T& other) noexcept
-    {
-        return append(other.begin(), other.size());
-    }
-
-    size_type append(value_type value) noexcept
-    {
-        if (size_ < cache_capacity)
-        {
-            data_[size_++] = value;
-            return size_;
-        }
-        return 0;
-    }
-
-    template<std::size_t N>
-    basic_text& operator=(const basic_text<char, N>& other) noexcept
-    {
-        assign(other.data(), other.size());
-        return *this;
-    }
-
-    basic_text& operator=(string_view other) noexcept
-    {
-        assign(other.data(), other.size());
-        return *this;
-    }
-
-    template<class T>
-    basic_text& operator=(const T& other) noexcept
-    {
-        assign(other.data(), other.size());
-        return *this;
-    }
-
-    basic_text& operator=(value_type value) noexcept
-    {
-        append(value);
-        return *this;
-    }
-
-    template<std::size_t N>
-    basic_text& operator+=(const basic_text<char, N>& other) noexcept
-    {
-        append(other.data(), other.size());
-        return *this;
-    }
-
-    basic_text& operator+=(string_view other) noexcept
-    {
-        append(other.data(), other.size());
-        return *this;
-    }
-
-    template<class T>
-    basic_text& operator+=(const T& other) noexcept
-    {
-        append(other.data(), other.size());
-        return *this;
-    }
-
-    basic_text& operator+=(value_type value) noexcept
-    {
-        append(value);
-        return *this;
-    }
-
-    void swap(basic_text& other) noexcept
-    {
-        basic_text t(*this);
-        *this = other;
-        other = t;
-    }
-
-    size_type resize(size_type size) noexcept
-    {
-        if (size < cache_size)
-        {
-            size_ = size;
-            return size;
-        }
-
-        return 0;
-    }
-
-    constexpr size_type capacity() const noexcept
-    {
-        return cache_capacity;
+        return data_[size_ - 1];
     }
 
     iterator begin() noexcept
@@ -272,12 +234,27 @@ public:
 
     const_iterator cbegin() const noexcept
     {
-        return begin();
+        return data_;
     }
 
     iterator end() noexcept
     {
         return data_ + size_;
+    }
+
+    reverse_iterator rbegin() noexcept
+    {
+        return reverse_iterator(end());
+    }
+
+    const_reverse_iterator rbegin() const noexcept
+    {
+        return const_reverse_iterator(end());
+    }
+
+    const_reverse_iterator crbegin() const noexcept
+    {
+        return rbegin();
     }
 
     const_iterator end() const noexcept
@@ -290,6 +267,21 @@ public:
         return end();
     }
 
+    reverse_iterator rend() noexcept
+    {
+        return reverse_iterator(begin());
+    }
+
+    const_reverse_iterator rend() const noexcept
+    {
+        return const_reverse_iterator(begin());
+    }
+
+    const_reverse_iterator crend() const noexcept
+    {
+        return rend();
+    }
+
     const_pointer data() const noexcept
     {
         return data_;
@@ -300,14 +292,101 @@ public:
         return data_;
     }
 
-    size_type size() const noexcept
+    const_pointer c_str() const noexcept
     {
-        return size_;
+        data_[size_] = '\0';
+        return data_;
     }
 
-    bool empty() const noexcept
+    constexpr size_type capacity() const noexcept
     {
-        return size_ == 0;
+        return cache_capacity;
+    }
+
+    size_type push_back(value_type value) noexcept
+    {
+        return append(value);
+    }
+
+    void pop_back() noexcept
+    {
+        if (size_)
+            --size_;
+    }
+
+    size_type resize(size_type size) noexcept
+    {
+        assert(size < cache_size);
+
+        if (size < cache_size)
+        {
+            size_ = size;
+            return size;
+        }
+
+        return 0;
+    }
+
+    void reserve(size_type) noexcept
+    {   }
+
+    size_type free_size() const noexcept
+    {
+        return cache_capacity - size_;
+    }
+
+    size_type append(const_pointer value, size_type len) noexcept
+    {
+        if (len && (len <= free_size()))
+        {
+            assert(value);
+            std::memcpy(end(), value, len);
+            size_ += len;
+            return size_;
+        }
+
+        return 0;
+    }
+
+    template<class T>
+    size_type append(const T& other) noexcept
+    {
+        sv_wrap wr{to_string_view(other)};
+        return append(wr.text_.data(), wr.text_.size());
+    }
+
+    size_type append(value_type value) noexcept
+    {
+        if (size_ < cache_capacity)
+        {
+            data_[size_++] = value;
+            return size_;
+        }
+        return 0;
+    }
+
+    size_type append(size_type n, value_type value) noexcept
+    {
+        if (n && (n <= free_size()))
+        {
+            std::memset(end(), value, n);
+            size_ += n;
+            return size_;
+        }
+        return 0;
+    }
+
+    template<class T>
+    size_type operator+=(const T& other) noexcept
+    {
+        return append(other);
+    }
+
+    void swap(basic_text& other) noexcept
+    {
+        basic_text t(*this);
+        *this = other;
+        other = t;
     }
 };
 

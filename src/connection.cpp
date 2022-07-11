@@ -234,14 +234,20 @@ connection::~connection()
 void connection::connect(evdns_base* dns, const std::string& host, int port)
 {
     create();
-    bev_.connect(dns, host, port);
     connecting_ = true;
+    // при работе с bev этот вызов должен быть посленим 
+    // тк при ошибке коннетка bev будет удалет в каллбеке
+    bev_.connect(dns, host, port);
 }
 
 void connection::connect(evdns_base* dns, const std::string& host, int port, timeval timeout)
 {
-    connect(dns, host, port);
+    create();
     bev_.set_timeout(nullptr, &timeout);
+    connecting_ = true;
+    // при работе с bev этот вызов должен быть посленим 
+    // тк при ошибке коннетка bev будет удалет в каллбеке
+    bev_.connect(dns, host, port);
 }
 
 void connection::unsubscribe(std::string_view id, stomplay::fun_type real_fn)

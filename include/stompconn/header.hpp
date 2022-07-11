@@ -209,6 +209,14 @@ constexpr static auto ack(std::string_view val) noexcept
     return known<tag::ack, std::string_view>(val);
 }
 
+constexpr static auto ack_client() noexcept {
+    return known_ref<tag::ack>(tag::ack::header_client());
+}
+
+constexpr static auto ack_client_individual() noexcept {
+    return known_ref<tag::ack>(tag::ack::header_client_individual());
+}
+
 constexpr static auto receipt(std::string_view val) noexcept
 {
     return known<tag::receipt, std::string_view>(val);
@@ -404,7 +412,7 @@ constexpr static auto timestamp(std::string_view val) noexcept
 }
 
 //typedef basic<tag::timestamp> timestamp;
-static inline auto timestamp(std::size_t val) noexcept
+static inline auto timestamp(std::uint64_t val) noexcept
 {
     return known<tag::timestamp, std::string>(std::to_string(val));
 }
@@ -420,6 +428,13 @@ static auto timestamp(std::chrono::duration<Rep, Period> timeout) noexcept
 static inline auto time_since_epoch() noexcept
 {
     return timestamp(std::chrono::system_clock::now().time_since_epoch());
+}
+
+static inline auto time_since_epoch(const timeval& tv) noexcept
+{
+    auto t = static_cast<std::uint64_t>(tv.tv_sec) * 1000 + 
+        tv.tv_usec % 1000;
+    return timestamp(t);
 }
 
 //typedef basic<tag::amqp_type> amqp_type;
