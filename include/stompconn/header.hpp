@@ -194,6 +194,12 @@ constexpr static auto heart_beat(std::string_view val) noexcept
     return known<tag::heart_beat, std::string_view>(val);
 }
 
+static inline auto heart_beat(std::size_t a, std::size_t b) noexcept
+{
+    auto val = std::to_string(a) + ',' + std::to_string(b);
+    return known<tag::heart_beat, std::string>(val);
+}
+
 constexpr static auto session(std::string_view val) noexcept
 {
     return known<tag::session, std::string_view>(val);
@@ -425,16 +431,16 @@ static auto timestamp(std::chrono::duration<Rep, Period> timeout) noexcept
     return timestamp(static_cast<std::size_t>(time));
 }
 
+static inline auto timestamp(const timeval& tv) noexcept
+{
+    auto t = static_cast<std::uint64_t>(tv.tv_sec) * 1000u + 
+        static_cast<std::uint64_t>(tv.tv_usec / 1000u);
+    return timestamp(t);
+}
+
 static inline auto time_since_epoch() noexcept
 {
     return timestamp(std::chrono::system_clock::now().time_since_epoch());
-}
-
-static inline auto time_since_epoch(const timeval& tv) noexcept
-{
-    auto t = static_cast<std::uint64_t>(tv.tv_sec) * 1000 + 
-        tv.tv_usec % 1000;
-    return timestamp(t);
 }
 
 //typedef basic<tag::amqp_type> amqp_type;
