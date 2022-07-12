@@ -27,11 +27,8 @@ public:
         auto f = storage_.find(num_id);
         if (f != storage_.end())
         {
-            auto& t = std::get<1>(*f);
-            
-            auto& storage_key = std::get<0>(t);
-            assert(storage_key == key);
-
+            auto& t = std::get<1>(*f);           
+            assert(std::get<0>(t) == key);
             std::get<1>(t) = value;
             std::get<2>(t) = version_;
         }
@@ -45,7 +42,7 @@ public:
     void set(std::string_view key, std::string_view value)
     {
        fnv1a h;
-       set(h(key.begin(), key.end()), key, value);
+       set(h(key.data(), key.size()), key, value);
     }
 
     void clear() noexcept
@@ -78,7 +75,7 @@ public:
     std::string_view get(std::string_view key) const noexcept
     {
         fnv1a h;
-        return find(h(key.begin(), key.end()), [&](auto hdr) {
+        return find(h(key.data(), key.size()), [&](auto hdr) {
             assert(std::get<0>(hdr) == key);
             return std::get<1>(hdr);
         });
