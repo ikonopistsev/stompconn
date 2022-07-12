@@ -2,7 +2,7 @@
 
 #include "stompconn/stomplay.hpp"
 #include "stompconn/libevent.hpp"
-#include "stomptalk/basic_text.hpp"
+#include "stompconn/basic_text.hpp"
 
 namespace stompconn {
 
@@ -10,8 +10,8 @@ class connection
 {
 public:
     using on_event_type = std::function<void(short)>;
-    using text_id_type = stomptalk::basic_text<char, 64>;
-    using hex_text_type = stomptalk::basic_text<char, 20>;
+    using text_id_type = stompconn::basic_text<char, 64>;
+    using hex_text_type = stompconn::basic_text<char, 20>;
     using on_error_type = stomplay::on_error_type;
 private:
     
@@ -20,6 +20,8 @@ private:
     ev timeout_{};
     std::size_t write_timeout_{};
     std::size_t read_timeout_{};
+    std::size_t bytes_writed_{};
+    std::size_t bytes_readed_{};
 
     on_event_type event_fun_{};
     callback_type on_connect_fun_{};
@@ -31,6 +33,7 @@ private:
     text_id_type connection_id_{};
 
     std::size_t message_seq_id_{};
+    bool connecting_{false};
 
     template<class A>
     struct proxy
@@ -148,6 +151,7 @@ public:
 
     // асинхронное отключение
     // допустим из собственных калбеков
+    // on_event не будет вызыван
     template<class F>
     void disconnect(F fn) noexcept
     {
@@ -178,10 +182,16 @@ public:
     {
         try
         {
-            for (auto& s : stomplay_.subscription())
+            auto& subs = stomplay_.subscription();
+            if (subs.empty())
             {
-                unsubscribe(std::to_string(s.first), [this, fn](auto) {
-                    auto& subs = stomplay_.subscription();
+                exec(fn);
+                return;
+            }
+
+            for (auto& s : subs)
+            {
+                unsubscribe(std::to_string(s.first), [&, fn](auto) {
                     if (subs.empty())
                         exec(fn);
                 });
@@ -191,6 +201,12 @@ public:
         {
             exec_error(std::current_exception());
         }
+    }
+
+    template<class F>
+    void for_subscription(F fn) {
+        for (auto& s : stomplay_.subscription())
+            fn(s.first);
     }
 
     void once(timeval tv, callback_type fn);
@@ -221,7 +237,7 @@ public:
 
     static auto get_ack_id(const packet& p) noexcept
     {
-        return p.get(stomptalk::header::tag::id());
+        return p.get_id();
     }
 
     // result is was asked or nacked :)
@@ -258,13 +274,13 @@ public:
     void commit(const packet& p, stomplay::fun_type fn)
     {
         assert(fn);
-        auto transaction_id = p.get(stomptalk::header::tag::transaction());
+        auto transaction_id = p.get_transaction();
         send(stompconn::commit(transaction_id), std::move(fn));
     }
 
     void commit(const packet& p)
     {
-        auto transaction_id = p.get(stomptalk::header::tag::transaction());
+        auto transaction_id = p.get_transaction();
         send(stompconn::commit(transaction_id));
     }
 
@@ -276,13 +292,13 @@ public:
     void abort(const packet& p, stomplay::fun_type fn)
     {
         assert(fn);
-        auto transaction_id = p.get(stomptalk::header::tag::transaction());
+        auto transaction_id = p.get_transaction();
         send(stompconn::abort(transaction_id), std::move(fn));
     }
 
     void abort(const packet& p)
     {
-        auto transaction_id = p.get(stomptalk::header::tag::transaction());
+        auto transaction_id = p.get_transaction();
         send(stompconn::abort(transaction_id));
     }
 
@@ -307,7 +323,7 @@ public:
     {
         setup_write_timeout(write_timeout_);
 
-        frame.write(bev_);
+        bytes_writed_ += frame.write(bev_);
     }
 
     void on_error(stomplay::fun_type fn);
@@ -315,6 +331,21 @@ public:
     void on_except(on_error_type fn);
 
     text_id_type create_message_id() noexcept;
+
+    bool connecting() const noexcept
+    {
+        return connecting_;
+    }
+
+    std::size_t bytes_writed() const noexcept
+    {
+        return bytes_writed_;
+    }
+
+    std::size_t bytes_readed() const noexcept
+    {
+        return bytes_readed_;
+    }
 };
 
 } // namespace stomptalk

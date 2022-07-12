@@ -9,16 +9,26 @@ using namespace stompconn;
 
 void connection::do_evcb(short what) noexcept
 {
+    connecting_ = false;
+
     if (what == BEV_EVENT_CONNECTED)
     {
-        bev_.enable(EV_READ);
-        update_connection_id();
-        on_connect_fun_();
+        try
+        {
+            update_connection_id();
+            on_connect_fun_();
+            bev_.enable(EV_READ);
+        }
+        catch(...)
+        {
+            exec_error(std::current_exception());
+        }        
     }
     else
     {
-        exec_event_fun(what);
         disconnect();
+
+        exec_event_fun(what);
     }
 }
 
@@ -66,6 +76,7 @@ void connection::do_recv(buffer_ref input) noexcept
         {
             // сколько непрерывных данных мы имеем
             auto needle = input.contiguous_space();
+            bytes_readed_ += needle;
             // получаем указатель
             auto ptr = reinterpret_cast<const char*>(
                 input.pullup(static_cast<ev_ssize_t>(needle)));
@@ -195,7 +206,7 @@ void connection::create(struct ssl_st *ssl)
 
 void connection::setup_heart_beat(const packet& logon)
 {
-    auto h = logon.get(stomptalk::header::tag::heart_beat());
+    auto h = logon.get_heart_beat();
     if (!h.empty())
     {
         using namespace std::literals;
@@ -223,13 +234,20 @@ connection::~connection()
 void connection::connect(evdns_base* dns, const std::string& host, int port)
 {
     create();
+    connecting_ = true;
+    // при работе с bev этот вызов должен быть посленим 
+    // тк при ошибке коннетка bev будет удалет в каллбеке
     bev_.connect(dns, host, port);
 }
 
 void connection::connect(evdns_base* dns, const std::string& host, int port, timeval timeout)
 {
-    connect(dns, host, port);
+    create();
     bev_.set_timeout(nullptr, &timeout);
+    connecting_ = true;
+    // при работе с bev этот вызов должен быть посленим 
+    // тк при ошибке коннетка bev будет удалет в каллбеке
+    bev_.connect(dns, host, port);
 }
 
 void connection::unsubscribe(std::string_view id, stomplay::fun_type real_fn)
@@ -237,8 +255,8 @@ void connection::unsubscribe(std::string_view id, stomplay::fun_type real_fn)
     assert(real_fn);
 
     frame frame;
-    frame.push(stomptalk::method::unsubscribe());
-    frame.push(stomptalk::header::id(id));
+    frame.push(stompconn::method::unsubscribe());
+    frame.push(stompconn::header::id(id));
     stomplay_.add_receipt(frame,
         [this , id = std::string(id), fn = std::move(real_fn)](packet p) {
           // вызываем клиентский обработчик подписки
@@ -247,18 +265,23 @@ void connection::unsubscribe(std::string_view id, stomplay::fun_type real_fn)
 
     setup_write_timeout(write_timeout_);
 
-    frame.write(bev_);
+    bytes_writed_ += frame.write(bev_);
 }
 
 void connection::disconnect() noexcept
 {
     try
     {
+        connecting_ = false;
+        bytes_readed_ = 0;
+        bytes_writed_ = 0;
+
         timeout_.destroy();
 
         stomplay_.logout();
-
+        
         bev_.destroy();
+
     }
     catch (...)
     {
@@ -271,20 +294,20 @@ void connection::logout(stomplay::fun_type fn)
     assert(fn);
 
     frame frame;
-    frame.push(stomptalk::method::disconnect());
+    frame.push(stompconn::method::disconnect());
 
     stomplay_.add_handler(frame, std::move(fn));
 
-    frame.write(bev_);
+    bytes_writed_ += frame.write(bev_);
 }
 
 // some helpers
 static inline auto add_tranaction_id(stompconn::frame& frame, const packet& p)
 {
-    auto transaction_id = p.get(stomptalk::header::tag::transaction());
+    auto transaction_id = p.get_transaction();
     auto rc = !transaction_id.empty();
     if (rc)
-        frame.push(stomptalk::header::transaction(transaction_id));
+        frame.push(stompconn::header::transaction(transaction_id));
     return rc;
 }
 
@@ -322,7 +345,7 @@ void connection::send(stompconn::logon frame, stomplay::fun_type real_fn)
 
     setup_write_timeout(write_timeout_);
 
-    frame.write(bev_);
+    bytes_writed_ += frame.write(bev_);
 }
 
 void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
@@ -334,7 +357,7 @@ void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
 
     setup_write_timeout(write_timeout_);
 
-    frame.write(bev_);
+    bytes_writed_ += frame.write(bev_);
 }
 
 void connection::send(stompconn::send frame, stomplay::fun_type fn)
@@ -489,7 +512,11 @@ void connection::send_heart_beat() noexcept
         // it MUST send an end-of-line (EOL)
         auto buf = bev_.output();
         if (buf.empty())
-            buf.append_ref("\n"sv);
+        {
+            constexpr static auto nl = "\n"sv;
+            bytes_writed_ += nl.size();
+            buf.append_ref(nl);
+        }
 
 #ifdef STOMPCONN_DEBUG
         std::cout << "send ping" << std::endl;

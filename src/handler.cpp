@@ -19,8 +19,8 @@ std::string_view receipt_handler::create(fn_type fn)
 {
     hex_text_type hex_id;
     to_hex_print(hex_id, ++receipt_seq_id_);
-    auto& i = receipt_.emplace_front(std::cref(hex_id), std::move(fn));
-    return stomptalk::sv(std::get<0>(i));
+    auto& i = receipt_.emplace_front(std::string_view{hex_id}, std::move(fn));
+    return sv(std::get<0>(i));
 }
 
 bool receipt_handler::call(std::string_view id, packet p) noexcept
