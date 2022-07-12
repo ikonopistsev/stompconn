@@ -473,6 +473,56 @@ public:
     } 
 };
 
+template<class T>
+class ev_sock_fn
+{
+public:
+    typedef void (T::*fn_type)(evutil_socket_t, short);
+
+private:
+    T& self_;
+    fn_type fn_{};
+
+public:
+    ev_sock_fn(T& self, fn_type fn) noexcept
+        : self_(self)
+        , fn_(fn)
+    {   
+        assert(fn);
+    }
+
+    void call(evutil_socket_t fd, short ef) noexcept
+    {
+        assert(fn_);
+        (self_.*fn_)(fd, ef);
+    }
+};
+
+template<class T>
+struct ev_timeout_fn
+{
+public:
+    typedef void (T::*fn_type)();
+
+private:
+    T& self_;
+    fn_type fn_;
+
+public:
+    ev_timeout_fn(T& self, fn_type fn) noexcept
+        : self_(self)
+        , fn_(fn)
+    {   
+        assert(fn);
+    }
+
+    void call() noexcept
+    {
+        assert(fn_);
+        (self_.*fn_)();
+    }
+};
+
 // хэндл динамического эвента
 class ev
 {
@@ -486,6 +536,28 @@ private:
         assert(!empty());
         return handle();
     }
+
+    template<class F>
+    struct proxy
+    {
+        static inline void evcb(evutil_socket_t fd, short ef, void* arg)
+        {
+            assert(arg);
+            (*static_cast<F*>(arg))(fd, ef);
+        }
+
+        static inline void ev_sock_cb(evutil_socket_t fd, short ef, void* arg)
+        {
+            assert(arg);
+            static_cast<ev_sock_fn<F>*>(arg)->call(fd, ef);
+        }
+
+        static inline void ev_timeout_cb(evutil_socket_t, short, void* arg)
+        {
+            assert(arg);
+            static_cast<ev_timeout_fn<F>*>(arg)->call();
+        }
+    };
 
 public:
     ev() = default;
@@ -504,6 +576,32 @@ public:
     void create(event_base* queue, short ef, event_callback_fn fn, void *arg)
     {
         create(queue, -1, ef, fn, arg);
+    }
+
+    template<class T>
+    void create(event_base* queue, evutil_socket_t fd, short ef, ev_sock_fn<T>& ev)
+    {
+        create(queue, fd, ef, proxy<ev_sock_fn<T>>::ev_sock_cb, &ev);
+    }
+
+    template<class T>
+    void create(event_base* queue, evutil_socket_t fd, short ef, ev_timeout_fn<T>& ev)
+    {
+        create(queue, fd, ef, proxy<ev_timeout_fn<T>>::ev_timeout_cb, &ev);
+    }
+
+    template<class T>
+    void create_interval(event_base* queue, ev_timeout_fn<T>& ev)
+    {
+        create(queue, -1, EV_TIMEOUT|EV_PERSIST, 
+            proxy<ev_timeout_fn<T>>::ev_timeout_cb, &ev);
+    }
+
+    template<class T>
+    void create_timeout(event_base* queue, ev_timeout_fn<T>& ev)
+    {
+        create(queue, -1, EV_TIMEOUT, 
+            proxy<ev_timeout_fn<T>>::ev_timeout_cb, &ev);
     }
 
     event* handle() const noexcept
