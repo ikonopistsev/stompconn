@@ -61,21 +61,29 @@ void subscription_handler::exec(iterator i, packet p) noexcept
     {   }
 }
 
-std::size_t subscription_handler::create(fn_type fn)
+void subscription_handler::create_subscription(const id_type& id, fn_type fn)
 {
     if (!fn)
-        throw std::runtime_error("destination empty");
+        throw std::runtime_error("handler empty");
 
-    subscription_[++subscription_seq_id_] = std::move(fn);
-    return subscription_seq_id_;
+    auto f = subscription_.try_emplace(id, std::move(fn));
+    if (!f.second)
+        throw std::runtime_error("subscription exist");
 }
 
-void subscription_handler::remove(std::size_t id) noexcept
+subscription_handler::id_type subscription_handler::create(fn_type fn)
+{
+    auto id = std::to_string(++subscription_seq_id_);
+    create_subscription(id, std::move(fn));
+    return id;
+}
+
+void subscription_handler::remove(const id_type& id) noexcept
 {
     subscription_.erase(id);
 }
 
-bool subscription_handler::call(std::size_t id, packet p) noexcept
+bool subscription_handler::call(const id_type& id, packet p) noexcept
 {
     auto f = subscription_.find(id);
     if (f != subscription_.end())

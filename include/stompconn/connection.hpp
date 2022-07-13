@@ -191,7 +191,7 @@ public:
 
             for (auto& s : subs)
             {
-                unsubscribe(std::to_string(s.first), [&, fn](auto) {
+                unsubscribe(s.first, [&, fn](auto) {
                     if (subs.empty())
                         exec(fn);
                 });
@@ -317,6 +317,8 @@ public:
     void send(stompconn::abort frame, stomplay::fun_type fn);
 
     void send(stompconn::send frame, stomplay::fun_type fn);
+
+    void send(stompconn::send_temp frame, stomplay::fun_type fn);
 
     template<class F>
     void send(F frame)

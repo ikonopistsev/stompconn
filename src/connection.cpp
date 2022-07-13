@@ -369,6 +369,18 @@ void connection::send(stompconn::send frame, stomplay::fun_type fn)
     send(std::move(frame));
 }
 
+void connection::send(stompconn::send_temp frame, stomplay::fun_type fn)
+{
+    assert(fn);
+
+    // получаем обработчик подписки
+    stomplay_.add_subscribe(frame, std::move(fn));
+
+    stomplay_.add_handler(frame, std::move(fn));
+
+    send(std::move(frame));
+}
+
 void connection::send(stompconn::ack frame, stomplay::fun_type fn)
 {
     assert(fn);

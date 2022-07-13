@@ -103,11 +103,11 @@ public:
         return add_receipt(frame, std::move(fn));
     }
 
-    std::size_t add_subscribe(subscribe& frame, fun_type fn);
+    std::string add_subscribe(subscribe& frame, fun_type fn);
 
-    void unsubscribe(std::string_view id);
+    std::string add_subscribe(send_temp& frame, fun_type fn);
 
-    void unsubscribe(std::size_t id);
+    void unsubscribe(const std::string& id);
 
     auto& subscription() const noexcept
     {

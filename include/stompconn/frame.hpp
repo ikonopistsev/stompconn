@@ -101,7 +101,7 @@ public:
     subscribe(std::string_view destination, fn_type fn);
 
     // возвращает идентификатор подписки
-    std::size_t add_subscribe(subscription_handler& handler);
+    std::string add_subscribe(subscription_handler& handler);
 };
 
 class body_frame
@@ -125,6 +125,24 @@ public:
     virtual void complete() override;
 
     virtual std::string str() const override;
+};
+
+// rabbitmq temp-queue feature
+// https://www.rabbitmq.com/stomp.html#d.tqd
+class send_temp final
+    : public body_frame
+{
+public:
+    typedef std::function<void(packet)> fn_type;
+private:
+    fn_type fn_{};
+    std::string reply_to_{};
+
+public:
+    send_temp(std::string_view destination, std::string_view reply_to, fn_type fn);
+
+    // возвращает идентификатор подписки
+    std::string add_subscribe(subscription_handler& handler);
 };
 
 class ack

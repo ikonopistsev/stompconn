@@ -33,8 +33,12 @@ public:
 
 class subscription_handler
 {
+public:
+    using id_type = std::string;
+    
+private:
     using fn_type = std::function<void(packet)>;
-    using storage_type = std::unordered_map<std::size_t, fn_type>;
+    using storage_type = std::unordered_map<id_type, fn_type>;
     using iterator = storage_type::iterator;
 
     std::size_t subscription_seq_id_{};
@@ -45,11 +49,13 @@ class subscription_handler
 public:
     subscription_handler() = default;
 
-    std::size_t create(fn_type fn);
+    void create_subscription(const id_type& id, fn_type fn);
 
-    bool call(std::size_t id, packet p) noexcept;
+    id_type create(fn_type fn);
 
-    void remove(std::size_t id) noexcept;
+    bool call(const id_type& id, packet p) noexcept;
+
+    void remove(const id_type& id) noexcept;
 
     void clear();
 

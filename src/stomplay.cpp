@@ -240,10 +240,9 @@ void stomplay::exec_on_message(std::string_view text_id) noexcept
 {
     try
     {
-        auto id = stomptalk::antoull(text_id.data(), text_id.size());
-        if (id > 0)
+        if (!text_id.empty())
         {
-            subscription_.call(static_cast<std::size_t>(id),
+            subscription_.call(subscription_handler::id_type{text_id},
                 packet(header_store_, session_, method_, std::move(recv_)));
         }
     }
@@ -280,17 +279,16 @@ std::string_view stomplay::add_receipt(frame &frame, fun_type fn)
     return receipt;
 }
 
-std::size_t stomplay::add_subscribe(subscribe& frame, fun_type fn)
+std::string stomplay::add_subscribe(subscribe& frame, fun_type fn)
 {
-    auto subs_id = frame.add_subscribe(subscription_);
-    add_receipt(frame, [this, subs_id, fn](auto packet) {
+    auto subscription_id = frame.add_subscribe(subscription_);
+    add_receipt(frame, [this, subscription_id, fn](auto packet) {
         try
         {
-            auto subscription_id = std::to_string(subs_id);
             packet.set_subscription_id(subscription_id);
 
             if (!packet)
-                subscription_.remove(subs_id);
+                subscription_.remove(subscription_id);
 
             fn(std::move(packet));
         }
@@ -303,17 +301,35 @@ std::size_t stomplay::add_subscribe(subscribe& frame, fun_type fn)
             std::cerr << "stomplay subscribe receipt" << std::endl;
         }
     });
-    return subs_id;
+    return subscription_id;
 }
 
-void stomplay::unsubscribe(std::string_view text_id)
+std::string stomplay::add_subscribe(send_temp& frame, fun_type fn)
 {
-    auto id = stomptalk::antoull(text_id.data(), text_id.size());
-    if (id > 0)
-        unsubscribe(static_cast<std::size_t>(id));
+    auto subscription_id = frame.add_subscribe(subscription_);
+    add_receipt(frame, [this, subscription_id, fn](auto packet) {
+        try
+        {
+            packet.set_subscription_id(subscription_id);
+
+            if (!packet)
+                subscription_.remove(subscription_id);
+
+            fn(std::move(packet));
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "stomplay send_temp receipt: " << e.what() << std::endl;
+        }
+        catch (...)
+        {
+            std::cerr << "stomplay send_temp receipt" << std::endl;
+        }
+    });
+    return subscription_id;
 }
 
-void stomplay::unsubscribe(std::size_t id)
+void stomplay::unsubscribe(const std::string& text_id)
 {
-    subscription_.remove(id);
+    subscription_.remove(text_id);
 }
