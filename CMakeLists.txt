@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(stompconn VERSION 1.6.5 LANGUAGES CXX)
+project(stompconn VERSION 1.6.6 LANGUAGES CXX)
 
 option(STOMPCONN_DEBUG "show debug" OFF)
-option(STOMPCONN_LIBRARY_STATIC "Set library type to STATIC" ON)
 option(STOMPCONN_WITH_STATIC_LIBEVENT "build with static libevent" OFF)
 option(STOMPCONN_OPENSSL "enable ssl" OFF)
 
@@ -43,19 +42,11 @@ set(pub_header
   include/stompconn/libevent.hpp
 )
 
-if (STOMPCONN_LIBRARY_STATIC)
-  add_library(stompconn STATIC ${source})
-else()
-  set_target_properties(stompconn PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION 1)
-  add_library(stompconn SHARED ${source})
-endif()
-
+add_library(stompconn STATIC ${source})
 target_include_directories(stompconn PUBLIC include/)
 
-if (NOT STOMPCONN_LIBRARY_STATIC)
-  if (STOMPCONN_WITH_STATIC_LIBEVENT)
-    add_subdirectory(libevent)
-  endif()
+if (STOMPCONN_WITH_STATIC_LIBEVENT)
+  add_subdirectory(libevent)
 endif()
 
-target_link_libraries(stompconn PRIVATE stomptalk event_core)
+target_link_libraries(stompconn PRIVATE event_core stomptalk)
