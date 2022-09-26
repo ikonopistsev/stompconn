@@ -1,25 +1,20 @@
-cmake_minimum_required(VERSION 3.7)
+cmake_minimum_required(VERSION 3.10)
 
-project(stompconn VERSION 1.6.4 LANGUAGES CXX)
+project(stompconn VERSION 1.6.5 LANGUAGES CXX)
 
 option(STOMPCONN_DEBUG "show debug" OFF)
-option(STOMPCONN_LIBEVENT "add libevent" OFF)
 option(STOMPCONN_LIBRARY_STATIC "Set library type to STATIC" ON)
+option(STOMPCONN_WITH_STATIC_LIBEVENT "build with static libevent" OFF)
 option(STOMPCONN_OPENSSL "enable ssl" OFF)
 
-macro(use_cxx17)
-  if (CMAKE_VERSION VERSION_LESS "3.8.2")
-    message(STATUS "stompconn enable c++17")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-  else ()
-    set (CMAKE_CXX_STANDARD 17)
-    set (CMAKE_CXX_STANDARD_REQUIRED ON)
-  endif ()
-endmacro(use_cxx17)
-
-use_cxx17()
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_definitions("-DSTOMPCONN_VERSION=${PROJECT_VERSION}")
+
+if (STOMPCONN_DEBUG)
+  add_definitions("-DSTOMPCONN_DEBUG")
+endif()
 
 if (STOMPCONN_OPENSSL)
     add_definitions("-DSTOMPCONN_OPENSSL")
@@ -27,14 +22,6 @@ endif()
 
 if (WIN32)
   add_definitions("-DNOMINMAX")
-endif()
-
-if (STOMPCONN_LIBEVENT)
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libevent/include)
-endif()
-
-if (STOMPCONN_DEBUG)
-  add_definitions("-DSTOMPCONN_DEBUG")
 endif()
 
 set(source
@@ -63,6 +50,12 @@ else()
   add_library(stompconn SHARED ${source})
 endif()
 
-target_include_directories(stompconn PUBLIC include)
+target_include_directories(stompconn PUBLIC include/)
 
-target_link_libraries(stompconn PRIVATE stomptalk)
+if (NOT STOMPCONN_LIBRARY_STATIC)
+  if (STOMPCONN_WITH_STATIC_LIBEVENT)
+    add_subdirectory(libevent)
+  endif()
+endif()
+
+target_link_libraries(stompconn PRIVATE stomptalk event_core)
