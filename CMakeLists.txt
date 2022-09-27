@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(stompconn VERSION 1.6.6 LANGUAGES CXX)
+project(stompconn VERSION 1.6.7 LANGUAGES CXX)
 
 option(STOMPCONN_DEBUG "show debug" OFF)
 option(STOMPCONN_WITH_STATIC_LIBEVENT "build with static libevent" OFF)
@@ -32,16 +32,6 @@ set(source
   src/libevent.cpp
 )
 
-set(pub_header
-  include/stompconn/handler.hpp
-  include/stompconn/packet.hpp
-  include/stompconn/stomplay.hpp
-  include/stompconn/frame.hpp
-  include/stompconn/connection.hpp
-  include/stompconn/version.hpp
-  include/stompconn/libevent.hpp
-)
-
 add_library(stompconn STATIC ${source})
 target_include_directories(stompconn PUBLIC include/)
 
@@ -50,3 +40,7 @@ if (STOMPCONN_WITH_STATIC_LIBEVENT)
 endif()
 
 target_link_libraries(stompconn PRIVATE event_core stomptalk)
+
+if (EVENT__HAVE_OPENSSL AND STOMPCONN_OPENSSL)
+  target_link_libraries(stompconn PRIVATE event_openssl)
+endif()

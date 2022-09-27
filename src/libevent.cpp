@@ -62,8 +62,7 @@ void bev::create(event_base* queue, evutil_socket_t fd, int opt)
     attach(hbev);
 }
 
-#ifdef STOMPCONN_OPENSSL
-#ifdef EVENT__HAVE_OPENSSL
+#if defined(EVENT__HAVE_OPENSSL) && defined(STOMPCONN_OPENSSL)
 void bev::create(event_base* queue, evutil_socket_t fd, struct ssl_st *ssl, int opt)
 {
     assert(ssl);
@@ -74,7 +73,6 @@ void bev::create(event_base* queue, evutil_socket_t fd, struct ssl_st *ssl, int 
         hbev != nullptr ? 0 : -1);
     attach(hbev);
 }
-#endif
 #endif
 
 void bev::destroy() noexcept
