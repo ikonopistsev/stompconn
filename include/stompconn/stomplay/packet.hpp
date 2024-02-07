@@ -1,15 +1,16 @@
 #pragma once
 
-#include "stompconn/libevent.hpp"
-#include "stompconn/header_store.hpp"
+#include "stompconn/buffer.hpp"
+#include "stompconn/stomplay/header_store.hpp"
 #include "stomptalk/parser.h"
 
 namespace stompconn {
+namespace stomplay {
 
 class packet
 {
 protected:
-    const header_store& header_;
+    const stomplay::header_store& header_;
     std::string_view session_{};
     std::string_view subscription_id_{};
     std::uint64_t method_{};
@@ -18,7 +19,7 @@ protected:
 public:
     packet(packet&&) = default;
 
-    packet(const header_store& header, std::string_view session,
+    packet(const stomplay::header_store& header, std::string_view session,
         std::uint64_t method, buffer payload)
         : header_(header)
         , session_(session)
@@ -233,4 +234,5 @@ public:
     }
 };
 
+} // namespace stomplay
 } // namespace stompconn

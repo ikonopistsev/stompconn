@@ -1,5 +1,4 @@
 #include "stompconn/connection.hpp"
-#include "stompconn/conv.hpp"
 #include <random>
 #ifdef STOMPCONN_DEBUG
 #include <iostream>
@@ -460,57 +459,42 @@ void connection::on_except(on_error_type fn)
 }
 
 // minutes from 2020-01-01 as hex string
-connection::text_id_type startup_hex_minutes_20200101() noexcept
+std::string startup_hex_minutes_20200101() noexcept
 {
-    using namespace std::chrono;
-    constexpr auto t0 = 1577836800u / 60u;
-    auto t = system_clock::now();
-    auto c = duration_cast<minutes>(t.time_since_epoch()).count();
-    auto val = static_cast<std::uint64_t>(c - t0);
+    struct steady {
+        std::string value;
+        steady() noexcept
+        {
+            using namespace std::chrono;
+            auto t = steady_clock::now();
+            auto c = duration_cast<minutes>(t.time_since_epoch()).count();
+            value = std::to_string(c);
+        }
+    };       
 
-    connection::text_id_type rc;
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distrib(0, 255);
-    to_hex_print(rc,
-        static_cast<std::uint8_t>(distrib(gen)));
-
-    to_hex_print(rc,
-        static_cast<std::uint64_t>(val));
-    return rc;
-}
-
-// последовательный номер сообщения
-connection::hex_text_type connection::message_seq_id() noexcept
-{
-    hex_text_type rc;
-    to_hex_print(rc,
-        static_cast<std::uint64_t>(++message_seq_id_));
-    return rc;
+    static steady s;
+    return s.value;
 }
 
 // последовательный номер сообщения
 void connection::update_connection_id() noexcept
 {
-    connection_id_.clear();
-    to_hex_print(connection_id_,
-        static_cast<std::uint64_t>(++connection_seq_id_));
+    connection_id_ = std::to_string(++connection_seq_id_);
     connection_id_ += '@';
     static const auto time = startup_hex_minutes_20200101();
     connection_id_ += time;
 }
 
-connection::text_id_type connection::create_id(char ch) noexcept
+std::string connection::create_id(char ch) noexcept
 {
-    text_id_type rc;
+    std::string rc;
     rc = message_seq_id();
     rc += ch;
     rc += connection_id_;
     return rc;
 }
 
-connection::text_id_type connection::create_message_id() noexcept
+std::string connection::create_message_id() noexcept
 {
     return create_id('M');
 }
