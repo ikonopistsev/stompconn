@@ -7,6 +7,7 @@
 #include <cassert>
 
 namespace stompconn {
+namespace stomplay {
 
 class header_store
 {
@@ -16,8 +17,9 @@ class header_store
     using header_type = std::pair<std::string_view, std::string_view>;
     using storage_type = std::unordered_map<hash_type, value_type>;
 
-    version_type version_{1};
+    version_type version_{};
     storage_type storage_{};
+    std::size_t size_{};
 
 public:
     header_store() = default;
@@ -27,15 +29,27 @@ public:
         auto f = storage_.find(num_id);
         if (f != storage_.end())
         {
-            auto& t = std::get<1>(*f);           
-            assert(std::get<0>(t) == key);
-            std::get<1>(t) = value;
-            std::get<2>(t) = version_;
+            auto& [ storage_key, storage_val, 
+                storage_version ] = std::get<1>(*f);
+            assert(storage_key == key);
+            
+            // If a client or a server receives repeated frame header entries, 
+            // only the first header entry SHOULD be used as the value of header entry. 
+            // Subsequent values are only used to maintain a history of state changes of the header and MAY be ignored.
+            if (storage_version != version_)
+            {
+                storage_val = value;
+                storage_version = version_;
+                ++size_;
+            }
         }
         else
         {
+            assert(stomptalk::fnv1a::calc_hash<decltype(key)>(key.begin(), 
+                key.end()) == num_id);
             storage_[num_id] = std::make_tuple(std::string{key}, 
                 std::string{value}, version_);
+            ++size_;
         }
     }
 
@@ -48,12 +62,23 @@ public:
     void clear() noexcept
     {
         ++version_;
+        size_ = 0;
     }
 
     void reset()
     {
         storage_.clear();
-        version_ = 1;
+        version_ = 0;
+    }
+
+    std::size_t size() const noexcept
+    {
+        return size_;
+    }
+
+    bool empty() const noexcept
+    {
+        return size_ == 0;
     }
 
     template<class F>
@@ -62,12 +87,13 @@ public:
         auto f = storage_.find(num_id);
         if (f != storage_.end())
         {
-            const auto& t = std::get<1>(*f);
-            if (std::get<2>(t) == version_)
+            const auto& [ storage_key, storage_val, 
+                storage_version ] = std::get<1>(*f);
+            if (storage_version == version_)
             {
-                return fn(std::make_pair(std::string_view{std::get<0>(t)}, 
-                    std::string_view{std::get<1>(t)}));
-            }
+                return fn(std::make_pair(std::string_view{storage_key}, 
+                    std::string_view{storage_val}));
+            } 
         }
         return {};
     }
@@ -75,9 +101,10 @@ public:
     std::string_view get(std::string_view key) const noexcept
     {
         fnv1a h;
-        return find(h(key.data(), key.size()), [&](auto hdr) {
-            assert(std::get<0>(hdr) == key);
-            return std::get<1>(hdr);
+        return find(h(key.begin(), key.end()), [&](auto hdr) {
+            auto& [ hdr_key, hdr_val ] = hdr;
+            assert(hdr_key == key);
+            return hdr_val;
         });
     }
 
@@ -93,17 +120,18 @@ public:
        std::string rc;
        rc.reserve(320);
 
-       for (auto& h : storage_)
+       for (auto&& h : storage_)
        {
-            const auto& t = std::get<1>(h);
-            if (std::get<2>(t) == version_)
+            const auto& [ storage_key, storage_val, 
+                storage_version ] = std::get<1>(h);
+            if (storage_version == version_)
             {
                 if (!rc.empty())
                     rc += sep;
 
-                rc += std::get<0>(t);
+                rc += storage_key;
                 rc += ':';
-                rc += std::get<1>(t);
+                rc += storage_val;
             }
        }
 
@@ -111,4 +139,5 @@ public:
     }
 };
 
+} // namespace stomplay
 } // namespace stompconn

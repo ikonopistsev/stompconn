@@ -1,35 +1,12 @@
 #pragma once
 
-#include "stompconn/packet.hpp"
-#include "stompconn/basic_text.hpp"
+#include "stompconn/stomplay/packet.hpp"
 
 #include <functional>
 #include <list>
 
 namespace stompconn {
-
-class receipt_handler
-{
-    using hex_text_type = basic_text<char, 20>;
-    using fn_type = std::function<void(packet)>;
-    using value_type = std::pair<hex_text_type, fn_type>;
-    using storage_type = std::list<value_type>;
-    using iterator = storage_type::iterator;
-
-    std::size_t receipt_seq_id_{};
-    storage_type receipt_{};
-
-    void exec(iterator i, packet p) noexcept;
-
-public:
-    receipt_handler() = default;
-
-    std::string_view create(fn_type fn);
-
-    bool call(std::string_view id, packet p) noexcept;
-
-    void clear();
-};
+namespace stomplay {
 
 class subscription_handler
 {
@@ -80,4 +57,5 @@ public:
     }
 };
 
+} // namespace stomplay
 } // namespace stomptalk

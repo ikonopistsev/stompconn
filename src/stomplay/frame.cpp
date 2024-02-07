@@ -1,12 +1,21 @@
-#include "stompconn/frame.hpp"
-#include "stompconn/handler.hpp"
+#include "stompconn/stomplay/frame.hpp"
+#include "stompconn/stomplay/subscription_handler.hpp"
 #include <stdexcept>
 #include <iostream>
 
-using namespace stompconn;
+namespace stompconn {
+namespace stomplay {
+
 using namespace std::literals;
 
-void frame::push_header(std::string_view key, std::string_view value)
+void frame::push(std::string_view text)
+{
+    if (text.empty())
+        throw std::logic_error("text empty");
+    data_.append(text);
+}
+
+void frame::push(std::string_view key, std::string_view value)
 {
     if (key.empty())
         throw std::logic_error("header key empty");
@@ -18,35 +27,6 @@ void frame::push_header(std::string_view key, std::string_view value)
     data_.append(key);
     data_.append(":"sv);
     data_.append(value);
-}
-
-// all ref
-void frame::push_header_ref(std::string_view prepared_key_value)
-{
-    assert(!prepared_key_value.empty());
-
-    data_.append(prepared_key_value);
-}
-
-// key ref, val non ref
-void frame::push_header_val(std::string_view prepared_key,
-                            std::string_view value)
-{
-    assert(!prepared_key.empty());
-
-    if (value.empty())
-        throw std::logic_error("frame header value empty");
-
-    data_.append(prepared_key);
-    data_.append(value);
-}
-
-void frame::push_method(std::string_view method)
-{
-    if (method.empty())
-        throw std::logic_error("frame method empty");
-
-    data_.append(method.data(), method.size());
 }
 
 void frame::complete()
@@ -64,7 +44,7 @@ int frame::write(evutil_socket_t sock)
     return data_.write(sock);
 }
 
-int frame::write(bev& bev)
+int frame::write(buffer_event& bev)
 {
     complete();
 
@@ -89,17 +69,17 @@ std::string frame::str() const
 logon::logon(std::string_view host,
     std::string_view login, std::string_view passcode)
 {
-    push(method::connect());
-    push(header::accept_version_v12());
+    push("CONNECT"sv);
+    push("\naccept-version:1.2"sv);
 
     if (host.empty())
         host = "/"sv;
-    push(header::host(host));
+    push("host"sv, host);
 
     if (!login.empty())
-        push(header::login(login));
+        push("login"sv, login);
     if (!passcode.empty())
-        push(header::passcode(passcode));
+        push("passcode"sv, passcode);
 }
 
 logon::logon(std::string_view host, std::string_view login)
@@ -116,8 +96,8 @@ subscribe::subscribe(std::string_view destination, fn_type fn)
     if (destination.empty())
         throw std::runtime_error("destination empty");
 
-    push(method::subscribe());
-    push(header::destination(destination));
+    push("SUBSCRIBE"sv);
+    push("destination"sv, destination);
 }
 
 std::string subscribe::add_subscribe(subscription_handler& handler)
@@ -137,7 +117,7 @@ send_temp::send_temp(std::string_view destination, std::string_view reply_to, fn
     if (reply_to.empty())
         throw std::runtime_error("reply_to empty");
 
-    push(method::send());
+    push("SEND"sv);
     push(header::destination(destination));
     push(header::reply_to(reply_to));
 }
@@ -213,7 +193,7 @@ send::send(std::string_view destination)
     if (destination.empty())
         throw std::runtime_error("destination empty");
 
-    push(method::send());
+    push("SEND"sv);
     push(header::destination(destination));
 }
 
@@ -222,7 +202,7 @@ ack::ack(std::string_view ack_id)
     if (ack_id.empty())
         throw std::runtime_error("ack id empty");
 
-    push(method::ack());
+    push("ACK"sv);
     push(header::id(ack_id));
 }
 
@@ -231,7 +211,7 @@ nack::nack(std::string_view ack_id)
     if (ack_id.empty())
         throw std::runtime_error("ack id empty");
 
-    push(method::nack());
+    push("NACK"sv);
     push(header::id(ack_id));
 }
 
@@ -240,12 +220,12 @@ begin::begin(std::string_view transaction_id)
     if (transaction_id.empty())
         throw std::runtime_error("transaction id empty");
 
-    push(method::begin());
+    push("BEGIN"sv);
     push(header::transaction(transaction_id));
 }
 
 begin::begin(std::size_t transaction_id)
-    : begin(std::to_string(transaction_id))
+    : begin{std::to_string(transaction_id)}
 {   }
 
 commit::commit(std::string_view transaction_id)
@@ -253,7 +233,7 @@ commit::commit(std::string_view transaction_id)
     if (transaction_id.empty())
         throw std::runtime_error("transaction id empty");
 
-    push(method::commit());
+    push("COMMIT"sv);
     push(header::transaction(transaction_id));
 }
 
@@ -262,7 +242,7 @@ abort::abort(std::string_view transaction_id)
     if (transaction_id.empty())
         throw std::runtime_error("transaction id empty");
 
-    push(method::abort());
+    push("ABORT"sv);
     push(header::transaction(transaction_id));
 }
 
@@ -271,13 +251,13 @@ receipt::receipt(std::string_view receipt_id)
     if (receipt_id.empty())
         throw std::runtime_error("receipt id empty");
 
-    push(method::receipt());
+    push("RECEIPT"sv);
     push(header::receipt_id(receipt_id));
 }
 
 connected::connected(std::string_view session, std::string_view server_version)
 {
-    push(method::connected());
+    push("CONNECTED"sv);
     push(header::version_v12());
     if (!server_version.empty())
         push(header::server(server_version));
@@ -286,7 +266,7 @@ connected::connected(std::string_view session, std::string_view server_version)
 }
 
 connected::connected(std::string_view session)
-    : connected(session, std::string_view())
+    : connected{session, std::string_view()}
 {   }
 
 error::error(std::string_view message, std::string_view receipt_id)
@@ -294,7 +274,7 @@ error::error(std::string_view message, std::string_view receipt_id)
     if (message.empty())
         throw std::runtime_error("message empty");
 
-    push(method::error());
+    push("ERROR"sv);
     push(header::message(message));
     if (!receipt_id.empty())
         push(header::receipt_id(receipt_id));
@@ -313,7 +293,8 @@ message::message(std::string_view destination,
         throw std::runtime_error("subscrition empty");
     if (message_id.empty())
         throw std::runtime_error("message_id empty");
-    push(method::message());
+
+    push("MESSAGE"sv);
     push(header::destination(destination));
     push(header::subscription(subscrition));
     push(header::message_id(message_id));
@@ -321,6 +302,8 @@ message::message(std::string_view destination,
 
 message::message(std::string_view destination,
     std::string_view subscrition, std::size_t message_id)
-    : message(destination, subscrition, std::to_string(message_id))
+    : message{destination, subscrition, std::to_string(message_id)}
 {   }
 
+} // namespace stomplay
+} // namespace stompconn

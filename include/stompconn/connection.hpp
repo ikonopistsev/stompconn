@@ -1,36 +1,41 @@
 ﻿#pragma once
 
-#include "stompconn/stomplay.hpp"
-#include "stompconn/libevent.hpp"
-#include "stompconn/basic_text.hpp"
+#include "stompconn/stomplay/client.hpp"
+#include "stompconn/libevent/event.hpp"
+#include "stompconn/libevent/buffer_event.hpp"
 
 namespace stompconn {
 
+using connection_fn_type = void (*)(short, void *);
+using error_fn_type = void (*)(std::exception_ptr, void *);
+
+struct connection_handler {
+    connection_fn_type fn;
+    void* arg;
+};
+
+struct error_handler {
+    error_fn_type fn;
+    void* arg;
+};
+
 class connection
-{
-public:
-    using on_event_type = std::function<void(short)>;
-    using text_id_type = stompconn::basic_text<char, 64>;
-    using hex_text_type = stompconn::basic_text<char, 20>;
-    using on_error_type = stomplay::on_error_type;
-private:
-    
-    event_base* queue_{ nullptr };
-    bev bev_{};
-    ev timeout_{};
+{    
+    libevent::queue_handle_type queue_{ nullptr };
+    libevent::buffer_event bev_{};
+    libevent::ev timeout_{};
     std::size_t write_timeout_{};
     std::size_t read_timeout_{};
     std::size_t bytes_writed_{};
     std::size_t bytes_readed_{};
 
-    on_event_type event_fun_{};
-    callback_type on_connect_fun_{};
-    on_error_type on_error_fun_{};
-
-    stomplay stomplay_{};
+    connection_handler handler_{};
+    error_handler error_handler_{};
+    
+    stomplay::client stomplay_{};
 
     std::size_t connection_seq_id_{};
-    text_id_type connection_id_{};
+    std::string connection_id_{};
 
     std::size_t message_seq_id_{};
     bool connecting_{false};
@@ -81,9 +86,12 @@ private:
 
     void update_connection_id() noexcept;
 
-    hex_text_type message_seq_id() noexcept;
+    std::string message_seq_id() noexcept
+    {
+        return std::to_string(++message_seq_id_);
+    }
 
-    text_id_type create_id(char ch) noexcept;
+    std::string create_id(char ch) noexcept;
 
     void setup_heart_beat(const packet& logon);
 
@@ -332,7 +340,7 @@ public:
 
     void on_except(on_error_type fn);
 
-    text_id_type create_message_id() noexcept;
+    std::string create_message_id() noexcept;
 
     bool connecting() const noexcept
     {

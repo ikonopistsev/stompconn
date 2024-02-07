@@ -1,11 +1,13 @@
 ﻿#pragma once
 
-#include "stompconn/libevent.hpp"
-#include "stompconn/header_store.hpp"
-#include "stompconn/method.hpp"
-#include "stompconn/header.hpp"
+#include "stompconn/buffer.hpp"
+#include "stompconn/buffer_event.hpp"
+#include "stompconn/stomplay/header.hpp"
+#include "stompconn/stomplay/header_store.hpp"
+#include <functional>   
 
 namespace stompconn {
+namespace stomplay {
 
 class packet;
 class subscription_handler;
@@ -22,46 +24,22 @@ public:
     frame(frame&&) = default;
     frame& operator=(frame&&) = default;
 
-    // выставить method
-    template<class V>
-    void push(method::known_ref<V> method)
+    void push(std::string_view key, std::string_view value);
+
+    void push(header::known_ref hdr)
     {
-        push_method(method.value());
+        push(hdr.text);
     }
 
-    // выставить хидер
     template<class K, class V>
-    void push(header::base<K, V> hdr)
+    void push(const header::known<K,V>& hdr)
     {
-        push_header(hdr.key(), hdr.value());
-    }
-
-    // выставить известный хидер
-    // добавляем ключ как ссылку на строку
-    template<class K, class V>
-    void push(header::known<K, V> hdr)
-    {
-        push_header_val(hdr.key(), hdr.value());
-    }
-
-    // выставить известный хидер
-    // добавляем ключ как ссылку на строку
-    template<class K>
-    void push(header::known_ref<K> hdr)
-    {
-        push_header_ref(hdr.key_val());
+        push(hdr.prepared_key);
+        push(hdr.value);
     }
 
 protected:
-    // all non ref
-    virtual void push_header(std::string_view key, std::string_view value);
-    // all ref
-    virtual void push_header_ref(std::string_view prepared_key_value);
-    // key ref, val non ref
-    virtual void push_header_val(std::string_view prepared_key,
-                         std::string_view value);
-
-    virtual void push_method(std::string_view method);
+    void push(std::string_view text);
 
 public:
     // complete frame before write
@@ -69,7 +47,7 @@ public:
 
     virtual int write(evutil_socket_t sock);
 
-    virtual int write(bev& bev);
+    virtual int write(buffer_event& bev);
 
     virtual buffer data();
 
@@ -221,5 +199,6 @@ public:
             std::string_view subscrition, std::size_t message_id);
 };
 
+} // namespace stompaly
 } // namespace stompconn
 

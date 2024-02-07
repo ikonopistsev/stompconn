@@ -1,11 +1,12 @@
-﻿#include "stompconn/stomplay.hpp"
+﻿#include "stompconn/stomplay/client.hpp"
 #include "stomptalk/antoull.hpp"
 #include "stomptalk/parser.h"
 #include <iostream>
 
-using namespace stompconn;
+namespace stompconn {
+namespace stomplay {
 
-void stomplay::on_frame(stomptalk::parser_hook& hook, const char*) noexcept
+void client::on_frame(stomptalk::parser_hook& hook, const char*) noexcept
 {
     try
     {
@@ -24,7 +25,7 @@ void stomplay::on_frame(stomptalk::parser_hook& hook, const char*) noexcept
     hook.set(stomptalk_error_generic);
 }
 
-void stomplay::on_method(stomptalk::parser_hook& hook, 
+void client::on_method(stomptalk::parser_hook& hook, 
     std::uint64_t method_id, const char* ptr, std::size_t size) noexcept
 {
     std::string_view method{ptr, size};
@@ -55,7 +56,7 @@ void stomplay::on_method(stomptalk::parser_hook& hook,
     hook.set(stomptalk_error_generic);
 }
 
-void stomplay::on_hdr_key(stomptalk::parser_hook& hook, 
+void client::on_hdr_key(stomptalk::parser_hook& hook, 
     std::uint64_t header_id, const char* ptr, std::size_t size) noexcept
 {
     std::string_view text{ptr, size};
@@ -82,7 +83,7 @@ void stomplay::on_hdr_key(stomptalk::parser_hook& hook,
     hook.set(stomptalk_error_generic);
 }
 
-void stomplay::on_hdr_val(stomptalk::parser_hook& hook, 
+void client::on_hdr_val(stomptalk::parser_hook& hook, 
     const char* ptr, std::size_t size) noexcept
 {
     std::string_view val{ptr, size};
@@ -111,7 +112,7 @@ void stomplay::on_hdr_val(stomptalk::parser_hook& hook,
     hook.set(stomptalk_error_generic);
 }
 
-void stomplay::on_body(stomptalk::parser_hook& hook,
+void client::on_body(stomptalk::parser_hook& hook,
     const void* data, std::size_t size) noexcept
 {
     try
@@ -135,7 +136,7 @@ void stomplay::on_body(stomptalk::parser_hook& hook,
     hook.set(stomptalk_error_generic);
 }
 
-void stomplay::on_frame_end(stomptalk::parser_hook&, const char*) noexcept
+void client::on_frame_end(stomptalk::parser_hook&, const char*) noexcept
 {
 #ifdef STOMPCONN_DEBUG
     std::cout << "<< " <<  dump_ << std::endl << std::endl;
@@ -167,7 +168,7 @@ void stomplay::on_frame_end(stomptalk::parser_hook&, const char*) noexcept
     }
 }
 
-void stomplay::exec_on_error() noexcept
+void client::exec_on_error() noexcept
 {
     try
     {
@@ -200,7 +201,7 @@ void stomplay::exec_on_error() noexcept
     }
 }
 
-void stomplay::exec_on_logon() noexcept
+void client::exec_on_logon() noexcept
 {
     try
     {
@@ -219,7 +220,7 @@ void stomplay::exec_on_logon() noexcept
     }
 }
 
-void stomplay::exec_on_receipt(std::string_view text_id) noexcept
+void client::exec_on_receipt(std::string_view text_id) noexcept
 {
     try
     {
@@ -236,7 +237,7 @@ void stomplay::exec_on_receipt(std::string_view text_id) noexcept
     }
 }
 
-void stomplay::exec_on_message(std::string_view text_id) noexcept
+void client::exec_on_message(std::string_view text_id) noexcept
 {
     try
     {
@@ -256,7 +257,7 @@ void stomplay::exec_on_message(std::string_view text_id) noexcept
     }
 }
 
-void stomplay::clear()
+void client::clear()
 {
     method_ = st_method_none;
     header_ = st_header_none;
@@ -265,21 +266,21 @@ void stomplay::clear()
     recv_.reset(buffer());
 }
 
-void stomplay::logout()
+void client::logout()
 {
     session_.clear();
     subscription_.clear();
     receipt_.clear();
 }
 
-std::string_view stomplay::add_receipt(frame &frame, fun_type fn)
+std::string_view client::add_receipt(frame &frame, fun_type fn)
 {
     auto receipt = receipt_.create(std::move(fn));
-    frame.push(stompconn::header::receipt(receipt));
+    frame.push(header::receipt(receipt));
     return receipt;
 }
 
-std::string stomplay::add_subscribe(subscribe& frame, fun_type fn)
+std::string client::add_subscribe(subscribe& frame, fun_type fn)
 {
     auto subscription_id = frame.add_subscribe(subscription_);
     add_receipt(frame, [this, subscription_id, fn](auto packet) {
@@ -304,17 +305,15 @@ std::string stomplay::add_subscribe(subscribe& frame, fun_type fn)
     return subscription_id;
 }
 
-std::string stomplay::add_subscribe(send_temp& frame, fun_type fn)
+std::string client::add_subscribe(send_temp& frame, fun_type fn)
 {
     auto subscription_id = frame.add_subscribe(subscription_);
     add_receipt(frame, [this, subscription_id, fn](auto packet) {
         try
         {
-            packet.set_subscription_id(subscription_id);
-
             if (!packet)
                 subscription_.remove(subscription_id);
-
+                
             fn(std::move(packet));
         }
         catch (const std::exception& e)
@@ -329,7 +328,10 @@ std::string stomplay::add_subscribe(send_temp& frame, fun_type fn)
     return subscription_id;
 }
 
-void stomplay::unsubscribe(const std::string& text_id)
+void client::unsubscribe(const std::string& text_id)
 {
     subscription_.remove(text_id);
 }
+
+} // namspace stomplay
+} // namespace stompconn

@@ -1,22 +1,22 @@
 #pragma once
 
-#include "stompconn/frame.hpp"
-#include "stompconn/handler.hpp"
-#include "stompconn/basic_text.hpp"
-#include "stompconn/header_store.hpp"
+#include "stompconn/stomplay/frame.hpp"
+#include "stompconn/stomplay/receipt_handler.hpp"
+#include "stompconn/stomplay/subscription_handler.hpp"
+#include "stompconn/stomplay/header_store.hpp"
 #include "stomptalk/parser.hpp"
 #include "stomptalk/hook_base.hpp"
 
 #include <array>
 
 namespace stompconn {
+namespace stomplay {
 
-class stomplay final
+class client final
     : public stomptalk::hook_base
 {
 public:
     using fun_type = std::function<void(packet)>;
-    using text_type = basic_text<char, 20>;
     using on_error_type = std::function<void(std::exception_ptr)>;
 
 private:
@@ -67,7 +67,7 @@ private:
     void clear();
 
 public:
-    stomplay() = default;
+    client() = default;
 
     const std::string& session() const noexcept
     {
@@ -115,5 +115,6 @@ public:
     }
 };
 
+} // namspace stomplay
 } // namespace stompconn
 
