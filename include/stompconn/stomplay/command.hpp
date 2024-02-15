@@ -96,6 +96,23 @@ public:
         rc += "\n\n"sv;
         return rc;
     }
+
+    std::string dump() const
+    {
+        auto str = data_.str();
+        if (!str.empty())
+        {
+            std::replace(std::begin(str), std::end(str), '\n', ' ');
+            std::replace(std::begin(str), std::end(str), '\r', ' ');
+            std::replace(std::begin(str), std::end(str), '\t', ' ');
+            std::size_t sz = 0;
+            do {
+                sz = str.length();
+                frame::replace_all(str, "  ", " ");
+            } while (sz != str.length());
+        }
+        return str;
+    }    
 };
 
 class logon final

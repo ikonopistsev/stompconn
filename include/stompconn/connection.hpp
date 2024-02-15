@@ -27,7 +27,7 @@ public:
             error       // ошибка
         };
 
-        auto sv(type s) const noexcept
+        static auto sv(type s) noexcept
         {
             using namespace std::literals;
             static constexpr auto text = std::array{
@@ -36,7 +36,7 @@ public:
             return text[s];
         }
 
-        auto error_sv(type s) const noexcept
+        static auto error_sv(type s) noexcept
         {
             using namespace std::literals;
             static constexpr auto text = std::array{
@@ -296,6 +296,9 @@ public:
     // stomp DISCONNECT
     void logout(frame_fun fn)
     {               
+        if (status_ != status::running)
+            throw std::runtime_error(status::error_sv(status_).data());
+
         stomplay::logout cmd;
         send_command(cmd, std::move(fn));
     }
@@ -303,10 +306,12 @@ public:
     // stomp DISCONNECT
     void logout()
     {
-        // сервер отключит нас
-        // когда принимает команду DISCONNECT
-        stomplay::logout cmd;
-        send_command(cmd);
+        only_running(*this, [&]{
+            // сервер отключит нас
+            // когда принимает команду DISCONNECT
+            stomplay::logout cmd;
+            send_command(cmd);
+        });
     }
 
     static auto get_ack_id(const stomplay::frame& p) noexcept
@@ -465,10 +470,14 @@ public:
             fn();
     }
 
-    void throw_state(status::type s) const
+    template<class F>
+    static void only_running(const connection& conn, F fn)
     {
-        if (!state(s))
-            throw std::runtime_error("invalid state");
+        auto st = status::running;
+        if (conn.state(st))
+            fn();
+        else
+            throw std::runtime_error(status::error_sv(st).data());
     }
 
     std::size_t bytes_writed() const noexcept
