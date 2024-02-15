@@ -1,27 +1,56 @@
 ﻿#pragma once
 
-#include "stompconn/stomplay/client.hpp"
+#include "stompconn/stomplay/frame.hpp"
+#include "stompconn/stomplay/protocol.hpp"
 #include "stompconn/libevent/event.hpp"
 #include "stompconn/libevent/buffer_event.hpp"
+#include <functional>
+#include <array>
 
 namespace stompconn {
 
-using connection_fn_type = void (*)(short, void *);
-using error_fn_type = void (*)(std::exception_ptr, void *);
+using event_fun = std::function<void(short)>;
+using timer_fun = libevent::timer_fun;
+using error_fun = std::function<void(std::exception_ptr)>;
+using frame_fun = stomplay::protocol::fun_type;
 
-struct connection_handler {
-    connection_fn_type fn;
-    void* arg;
-};
+class connection final
+{   
+public:
+    struct status
+    {
+        enum type : std::size_t 
+        {
+            ready,      // готово к использованию
+            connecting, // подключение
+            running,    // подключено
+            error       // ошибка
+        };
 
-struct error_handler {
-    error_fn_type fn;
-    void* arg;
-};
+        auto sv(type s) const noexcept
+        {
+            using namespace std::literals;
+            static constexpr auto text = std::array{
+                "ready"sv, "connecting"sv, "running"sv, "error"sv
+            };
+            return text[s];
+        }
 
-class connection
-{    
-    libevent::queue_handle_type queue_{ nullptr };
+        auto error_sv(type s) const noexcept
+        {
+            using namespace std::literals;
+            static constexpr auto text = std::array{
+                "connection not ready"sv, 
+                "connection is connecting"sv, 
+                "connection is running"sv, 
+                "connection error"sv
+            };
+            return text[s];
+        }
+    };
+
+private:
+    libevent::queue_handle_type queue_{};
     libevent::buffer_event bev_{};
     libevent::ev timeout_{};
     std::size_t write_timeout_{};
@@ -29,16 +58,18 @@ class connection
     std::size_t bytes_writed_{};
     std::size_t bytes_readed_{};
 
-    connection_handler handler_{};
-    error_handler error_handler_{};
+    // события от libevent
+    // подклчюение, отключение, ошибка
+    event_fun on_event_{};
+    error_fun on_error_{};
     
-    stomplay::client stomplay_{};
+    stomplay::protocol stomplay_{};
 
     std::size_t connection_seq_id_{};
     std::string connection_id_{};
 
     std::size_t message_seq_id_{};
-    bool connecting_{false};
+    status::type status_{status::ready};
 
     template<class A>
     struct proxy
@@ -74,13 +105,27 @@ class connection
     void create();
 
 #ifdef EVENT__HAVE_OPENSSL
-    void create(struct ssl_st *ssl);
+    void create(struct ssl_st *ssl)
+    {
+        assert(ssl);
+
+        bev_.destroy();
+        timeout_.destroy();
+
+        bev_.create(queue_, -1, ssl);
+
+        bev_.set(&proxy<connection>::recvcb,
+            nullptr, &proxy<connection>::evcb, this);
+
+        write_timeout_ = 0;
+        read_timeout_ = 0;
+    }
 #endif
 
-    void exec_logon(const stomplay::fun_type& fn, packet p) noexcept;
+    void exec_logon(const frame_fun& fn, stomplay::frame p) noexcept;
 
-    void exec_unsubscribe(const stomplay::fun_type& fn,
-                          const std::string& id, packet p) noexcept;
+    void exec_unsubscribe(const frame_fun& fn,
+                          const std::string& id, stomplay::frame p) noexcept;
 
     void exec_event_fun(short ef) noexcept;
 
@@ -93,11 +138,20 @@ class connection
 
     std::string create_id(char ch) noexcept;
 
-    void setup_heart_beat(const packet& logon);
+    void setup_heart_beat(const stomplay::frame& logon);
 
     void send_heart_beat() noexcept;
 
     void exec_error(std::exception_ptr ex) noexcept;
+    // отправка подготовленного буфера в буфферэвент
+    void send_command(stomplay::command& cmd);
+    void send_command(stomplay::command& cmd, frame_fun fn);
+
+    // отправка подготовленного буфера в буфферэвент
+    void send_command(stomplay::body_command& cmd);
+    void send_command(stomplay::body_command& cmd, frame_fun fn);
+
+    void start_send_command(stomplay::body_command& cmd, std::size_t content_length);
 
     template<class F>
     void exec(F fn) noexcept
@@ -119,22 +173,21 @@ public:
         {   }
     };
 
-    connection(event_base* queue,
-               on_event_type event_fn, callback_type conn_fn) noexcept
+    connection(libevent::queue_handle_type queue, event_fun fn) noexcept
         : queue_(queue)
-        , event_fun_(event_fn)
-        , on_connect_fun_(conn_fn)
+        , on_event_(fn)
     {
         assert(queue);
-        assert(event_fn);
-        assert(conn_fn);
+        assert(fn);
     }
 
     ~connection();
 
-    void connect(evdns_base* dns, const std::string& host, int port);
+    void connect(libevent::dns_handle_type dns, 
+        const std::string& host, int port);
 
-    void connect(evdns_base* dns, const std::string& host, int port, timeval timeout);
+    void connect(libevent::dns_handle_type dns, 
+        const std::string& host, int port, timeval timeout);
 
     void connect(const std::string& host, int port)
     {
@@ -142,7 +195,7 @@ public:
     }
 
     template<class Rep, class Period>
-    void connect(evdns_base* dns, const std::string& host, int port,
+    void connect(libevent::dns_handle_type dns, const std::string& host, int port,
                  std::chrono::duration<Rep, Period> timeout)
     {
         connect(dns, host, port, detail::make_timeval(timeout));
@@ -155,7 +208,7 @@ public:
         connect(nullptr, host, port, timeout);
     }
 
-    void disconnect() noexcept;
+    void destroy() noexcept;
 
     // асинхронное отключение
     // допустим из собственных калбеков
@@ -167,7 +220,7 @@ public:
         {
             once([this, fn]{
                 exec([this, fn]{
-                    disconnect();
+                    destroy();
                     fn();
                 });
             });
@@ -183,7 +236,7 @@ public:
         return stomplay_.session();
     }
 
-    void unsubscribe(std::string_view id, stomplay::fun_type fn);
+    void unsubscribe(std::string_view id, frame_fun fn);
 
     template<class F>
     void unsubscribe_all(F fn) noexcept
@@ -217,15 +270,15 @@ public:
             fn(s.first);
     }
 
-    void once(timeval tv, callback_type fn);
+    void once(timeval tv, timer_fun fn);
 
-    void once(callback_type fn)
+    void once(timer_fun fn)
     {
         once(timeval{0, 0}, std::move(fn));
     }
 
     template<class Rep, class Period>
-    void once(std::chrono::duration<Rep, Period> timeout, callback_type fn)
+    void once(std::chrono::duration<Rep, Period> timeout, timer_fun fn)
     {
         once(detail::make_timeval(timeout), std::move(fn));
     }
@@ -233,118 +286,189 @@ public:
     template<class F>
     void unsubscribe_logout(F fn) noexcept
     {
-        unsubscribe_all([this, fn]{
-            logout([this, fn](auto) {
+        unsubscribe_all([&, fn]{
+            logout([&, fn](auto) {
                 exec(fn);
             });
         });
     }
 
     // stomp DISCONNECT
-    void logout(stomplay::fun_type fn);
+    void logout(frame_fun fn)
+    {               
+        stomplay::logout cmd;
+        send_command(cmd, std::move(fn));
+    }
 
-    static auto get_ack_id(const packet& p) noexcept
+    // stomp DISCONNECT
+    void logout()
+    {
+        // сервер отключит нас
+        // когда принимает команду DISCONNECT
+        stomplay::logout cmd;
+        send_command(cmd);
+    }
+
+    static auto get_ack_id(const stomplay::frame& p) noexcept
     {
         return p.get_id();
     }
 
     // result is was asked or nacked :)
     // with_transaction_id = false by default
-    void ack(const packet& p, bool with_transaction_id, stomplay::fun_type fn);
+    void ack(const stomplay::frame& p, bool with_transaction_id, frame_fun fn);
 
-    void ack(const packet& p, stomplay::fun_type fn)
+    void ack(const stomplay::frame& p, frame_fun fn)
     {
         ack(p, false, std::move(fn));
     }
 
-    void nack(const packet& p, bool with_transaction_id, stomplay::fun_type fn);
+    void nack(const stomplay::frame& p, bool with_transaction_id, frame_fun fn);
 
-    void nack(const packet& p, stomplay::fun_type fn)
+    void nack(const stomplay::frame& p, frame_fun fn)
     {
         nack(p, false, std::move(fn));
     }
 
-    void begin(std::string_view transaction_id, stomplay::fun_type fn)
+    void send(stomplay::logon cmd, frame_fun fn);
+
+    void send(stomplay::subscribe cmd, frame_fun fn);
+
+    // ACK
+    void send(stomplay::ack cmd, frame_fun fn)
     {
-        assert(fn);
-        send(stompconn::begin(transaction_id), std::move(fn));
+        send_command(cmd, std::move(fn));
+    }
+
+    // NACK
+    void send(stomplay::nack cmd, frame_fun fn)
+    {
+        send_command(cmd, std::move(fn));
+    }
+
+    // BEGIN
+    void send(stomplay::begin cmd, frame_fun fn)
+    {
+        send_command(cmd, std::move(fn));
+    }
+
+    void send(stomplay::begin cmd)
+    {
+        send_command(cmd);
+    }
+
+    void begin(std::string_view transaction_id, frame_fun fn)
+    {
+        send(stomplay::begin(transaction_id), std::move(fn));
     }
 
     void begin(std::string_view transaction_id)
     {
-        send(stompconn::begin(transaction_id));
+        send(stomplay::begin{transaction_id});
     }
 
-    void commit(std::string_view transaction_id, stomplay::fun_type fn);
-
-    void commit(std::string_view transaction_id);
-
-    void commit(const packet& p, stomplay::fun_type fn)
+    // COMMIT
+    void send(stomplay::commit cmd, frame_fun fn)
     {
-        assert(fn);
-        auto transaction_id = p.get_transaction();
-        send(stompconn::commit(transaction_id), std::move(fn));
+        send_command(cmd, std::move(fn));
     }
 
-    void commit(const packet& p)
+    void send(stomplay::commit cmd)
     {
-        auto transaction_id = p.get_transaction();
-        send(stompconn::commit(transaction_id));
+        send_command(cmd);
     }
 
-    void abort(std::string_view transaction_id, stomplay::fun_type fn);
-
-
-    void abort(std::string_view transaction_id);
-
-    void abort(const packet& p, stomplay::fun_type fn)
+    void commit(std::string_view transaction_id, frame_fun fn)
     {
-        assert(fn);
-        auto transaction_id = p.get_transaction();
-        send(stompconn::abort(transaction_id), std::move(fn));
+        send(stomplay::commit{transaction_id}, std::move(fn));
     }
 
-    void abort(const packet& p)
+    void commit(std::string_view transaction_id)
+    {
+        send(stomplay::commit{transaction_id});
+    }
+
+    void commit(const stomplay::frame& p, frame_fun fn)
     {
         auto transaction_id = p.get_transaction();
-        send(stompconn::abort(transaction_id));
+        commit(transaction_id, std::move(fn));
     }
 
-    void send(stompconn::logon frame, stomplay::fun_type fn);
-
-    void send(stompconn::subscribe frame, stomplay::fun_type fn);
-
-    void send(stompconn::ack frame, stomplay::fun_type fn);
-
-    void send(stompconn::nack frame, stomplay::fun_type fn);
-
-    void send(stompconn::begin frame, stomplay::fun_type fn);
-
-    void send(stompconn::commit frame, stomplay::fun_type fn);
-
-    void send(stompconn::abort frame, stomplay::fun_type fn);
-
-    void send(stompconn::send frame, stomplay::fun_type fn);
-
-    void send(stompconn::send_temp frame, stomplay::fun_type fn);
-
-    template<class F>
-    void send(F frame)
+    void commit(const stomplay::frame& p)
     {
-        setup_write_timeout(write_timeout_);
-
-        bytes_writed_ += frame.write(bev_);
+        auto transaction_id = p.get_transaction();
+        commit(transaction_id);
     }
 
-    void on_error(stomplay::fun_type fn);
+    // ABORT
+    void send(stomplay::abort cmd, frame_fun fn)
+    {
+        send_command(cmd, std::move(fn));
+    }
 
-    void on_except(on_error_type fn);
+    void send(stomplay::abort cmd)
+    {
+        send_command(cmd);
+    }
+
+    void abort(std::string_view transaction_id, frame_fun fn)
+    {
+        send(stomplay::abort{transaction_id}, std::move(fn));
+    }
+
+    void abort(std::string_view transaction_id)
+    {
+        send(stomplay::abort{transaction_id});
+    }
+
+    void abort(const stomplay::frame& p, frame_fun fn)
+    {
+        auto transaction_id = p.get_transaction();
+        abort(transaction_id, std::move(fn));
+    }
+
+    void abort(const stomplay::frame& p)
+    {
+        auto transaction_id = p.get_transaction();
+        abort(transaction_id);
+    }
+
+    void send(stomplay::send cmd, frame_fun fn)
+    {
+        send_command(cmd, std::move(fn));
+    }
+
+    //void send(stomplay::send_temp frame, frame_fun fn);
+
+    void on_error(frame_fun fn);
+
+    void on_except(error_fun fn);
 
     std::string create_message_id() noexcept;
 
-    bool connecting() const noexcept
+    bool state(status::type s) const noexcept
     {
-        return connecting_;
+        return status_ == s;
+    }
+
+    template<class F>
+    void at_running(F fn) const
+    {
+        if (state(status::running))
+            fn();
+    }
+
+    template<class F>
+    void at_ready(F fn) const
+    {
+        if (state(status::ready))
+            fn();
+    }
+
+    void throw_state(status::type s) const
+    {
+        if (!state(s))
+            throw std::runtime_error("invalid state");
     }
 
     std::size_t bytes_writed() const noexcept

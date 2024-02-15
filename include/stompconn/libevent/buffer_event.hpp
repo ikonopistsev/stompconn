@@ -130,7 +130,7 @@ public:
     void connect(dns_handle_type dns, int af,
         const std::string& hostname, int port)
     {
-        assert(dns);
+        //assert(dns);
         detail::check_result("bufferevent_socket_connect_hostname",
             bufferevent_socket_connect_hostname(assert_handle(handle()), dns,
                 af, hostname.c_str(), port));

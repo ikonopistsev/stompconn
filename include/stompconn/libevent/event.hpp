@@ -28,7 +28,7 @@ public:
     ev() = default;
     ev(ev&& other) = default;
     ev& operator=(ev&& other) = default;
-    ~ev() noexcept;
+    ~ev() = default;
 
     // захват хэндла
     explicit ev(event_handle handle) noexcept
@@ -295,13 +295,6 @@ void make_once(queue_handle_type queue, evutil_socket_t fd,
     short ef, const timeval& tv, F& fn)
 {
     make_once(queue, fd, ef, tv, proxy_call(fn));    
-}
-
-template<class F>
-void make_once(queue_handle_type queue, evutil_socket_t fd, 
-    short ef, const timeval& tv, F&& fn)
-{
-    make_once(queue, fd, ef, tv, proxy_call(std::forward<F>(fn)));    
 }
 
 } // namespace libevent

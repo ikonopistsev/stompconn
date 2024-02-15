@@ -8,15 +8,18 @@ using namespace stompconn;
 
 void connection::do_evcb(short what) noexcept
 {
-    connecting_ = false;
+    /// FIXME: стаусы в нужных местах
+    // status_ = status::connecting;
 
-    if (what == BEV_EVENT_CONNECTED)
+    if (what & BEV_EVENT_CONNECTED)
     {
         try
         {
             update_connection_id();
-            on_connect_fun_();
+
             bev_.enable(EV_READ);
+
+            status_ = status::running;
         }
         catch(...)
         {
@@ -24,11 +27,9 @@ void connection::do_evcb(short what) noexcept
         }        
     }
     else
-    {
-        disconnect();
+        destroy();
 
-        exec_event_fun(what);
-    }
+    exec_event_fun(what);
 }
 
 void connection::setup_write_timeout(std::size_t timeout, double tolerant)
@@ -37,7 +38,7 @@ void connection::setup_write_timeout(std::size_t timeout, double tolerant)
     {
         if (timeout_.empty())
         {
-            timeout_.create(queue_, EV_PERSIST|EV_TIMEOUT,
+            timeout_.create(queue_, -1, EV_PERSIST|EV_TIMEOUT,
                 proxy<connection>::heart_beat, this);
         }
 
@@ -123,7 +124,7 @@ void connection::do_recv(buffer_ref input) noexcept
     do_evcb(BEV_EVENT_ERROR);
 }
 
-void connection::exec_logon(const stomplay::fun_type& fn, packet p) noexcept
+void connection::exec_logon(const frame_fun& fn, stomplay::frame p) noexcept
 {
     try
     {
@@ -139,8 +140,8 @@ void connection::exec_logon(const stomplay::fun_type& fn, packet p) noexcept
     }
 }
 
-void connection::exec_unsubscribe(const stomplay::fun_type& fn,
-    const std::string& id, packet p) noexcept
+void connection::exec_unsubscribe(const frame_fun& fn,
+    const std::string& id, stomplay::frame p) noexcept
 {
     try
     {
@@ -161,7 +162,7 @@ void connection::exec_event_fun(short what) noexcept
 {
     try
     {
-        event_fun_(what);
+        on_event_(what);
     }
     catch (...)
     {
@@ -174,36 +175,17 @@ void connection::create()
     bev_.destroy();
     timeout_.destroy();
 
-    bev_.create(queue_, -1);
+    bev_.create(queue_);
 
     bev_.set(&proxy<connection>::recvcb,
         nullptr, &proxy<connection>::evcb, this);
 
     write_timeout_ = 0;
     read_timeout_ = 0;
+    status_ = status::ready;
 }
 
-#ifdef STOMPCONN_OPENSSL
-#ifdef EVENT__HAVE_OPENSSL
-void connection::create(struct ssl_st *ssl)
-{
-    assert(ssl);
-
-    bev_.destroy();
-    timeout_.destroy();
-
-    bev_.create(queue_, -1, ssl);
-
-    bev_.set(&proxy<connection>::recvcb,
-        nullptr, &proxy<connection>::evcb, this);
-
-    write_timeout_ = 0;
-    read_timeout_ = 0;
-}
-#endif
-#endif
-
-void connection::setup_heart_beat(const packet& logon)
+void connection::setup_heart_beat(const stomplay::frame& logon)
 {
     auto h = logon.get_heart_beat();
     if (!h.empty())
@@ -227,60 +209,57 @@ void connection::setup_heart_beat(const packet& logon)
 
 connection::~connection()
 {
-    disconnect();
+    destroy();
 }
 
-void connection::connect(evdns_base* dns, const std::string& host, int port)
+void connection::connect(evdns_base* dns, 
+    const std::string& host, int port)
 {
     create();
-    connecting_ = true;
     // при работе с bev этот вызов должен быть посленим 
-    // тк при ошибке коннетка bev будет удалет в каллбеке
+    // тк при ошибке коннетка bev будет удален в каллбеке
     bev_.connect(dns, host, port);
+    // перводим статус
+    status_ = status::connecting;
 }
 
-void connection::connect(evdns_base* dns, const std::string& host, int port, timeval timeout)
+void connection::connect(evdns_base* dns, 
+    const std::string& host, int port, timeval timeout)
 {
     create();
+
     bev_.set_timeout(nullptr, &timeout);
-    connecting_ = true;
     // при работе с bev этот вызов должен быть посленим 
-    // тк при ошибке коннетка bev будет удалет в каллбеке
+    // тк при ошибке коннетка bev будет удален в каллбеке
     bev_.connect(dns, host, port);
+    // перводим статус
+    status_ = status::connecting;
 }
 
-void connection::unsubscribe(std::string_view id, stomplay::fun_type real_fn)
+void connection::unsubscribe(std::string_view id, frame_fun real_fn)
 {
     assert(real_fn);
 
-    frame frame;
-    frame.push(stompconn::method::unsubscribe());
-    frame.push(stompconn::header::id(id));
-    stomplay_.add_receipt(frame,
-        [this , id = std::string(id), fn = std::move(real_fn)](packet p) {
+    /// FIXME: тут явно ересь какая-то
+    stomplay::unsubscribe frame{id, std::move(real_fn)};
+    send_command(frame, [& , id = std::string(id), fn = std::move(real_fn)](stomplay::frame p) {
           // вызываем клиентский обработчик подписки
           exec_unsubscribe(fn, id, std::move(p));
     });
-
-    setup_write_timeout(write_timeout_);
-
-    bytes_writed_ += frame.write(bev_);
 }
 
-void connection::disconnect() noexcept
+void connection::destroy() noexcept
 {
     try
     {
-        connecting_ = false;
         bytes_readed_ = 0;
         bytes_writed_ = 0;
 
         timeout_.destroy();
-
-        stomplay_.logout();
-        
         bev_.destroy();
+        stomplay_.reset();
 
+        status_ = status::ready;
     }
     catch (...)
     {
@@ -288,174 +267,79 @@ void connection::disconnect() noexcept
     }
 }
 
-void connection::logout(stomplay::fun_type fn)
-{
-    assert(fn);
-
-    frame frame;
-    frame.push(stompconn::method::disconnect());
-
-    stomplay_.add_handler(frame, std::move(fn));
-
-    bytes_writed_ += frame.write(bev_);
-}
-
 // some helpers
-static inline auto add_tranaction_id(stompconn::frame& frame, const packet& p)
+static inline auto add_tranaction_id(stomplay::command& cmd, const stomplay::frame& frame)
 {
-    auto transaction_id = p.get_transaction();
+    auto transaction_id = frame.get_transaction();
     auto rc = !transaction_id.empty();
     if (rc)
-        frame.push(stompconn::header::transaction(transaction_id));
+        cmd.push(stomplay::header::transaction(transaction_id));
     return rc;
 }
 
-void connection::ack(const packet& p,
-    bool with_transaction_id, stomplay::fun_type fn)
+void connection::ack(const stomplay::frame& frame,
+    bool with_transaction_id, frame_fun fn)
 {
     assert(fn);
 
-    stompconn::ack frame(get_ack_id(p));
+    stomplay::ack cmd(frame.get_id());
     if (with_transaction_id)
-        add_tranaction_id(frame, p);
+        add_tranaction_id(cmd, frame);
 
-    send(std::move(frame), std::move(fn));
+    send(std::move(cmd), std::move(fn));
 }
 
-void connection::nack(const packet& p,
-    bool with_transaction_id, stomplay::fun_type fn)
+void connection::nack(const stomplay::frame& frame,
+    bool with_transaction_id, frame_fun fn)
 {
     assert(fn);
 
-    stompconn::nack frame(get_ack_id(p));
+    stomplay::nack cmd(frame.get_id());
     if (with_transaction_id)
-        add_tranaction_id(frame, p);
+        add_tranaction_id(cmd, frame);
 
-    send(std::move(frame), std::move(fn));
+    send(std::move(cmd), std::move(fn));
 }
 
-void connection::send(stompconn::logon frame, stomplay::fun_type real_fn)
+void connection::send(stomplay::logon cmd, frame_fun real_fn)
 {
     assert(real_fn);
 
-    stomplay_.on_logon([this, fn = std::move(real_fn)](packet p) {
-        exec_logon(fn, std::move(p));
+    stomplay_.on_logon([this, fn = std::move(real_fn)](stomplay::frame frame) {
+        exec_logon(fn, std::move(frame));
     });
-
-    setup_write_timeout(write_timeout_);
-
-    bytes_writed_ += frame.write(bev_);
+    
+    send_command(cmd);
 }
 
-void connection::send(stompconn::subscribe frame, stomplay::fun_type fn)
+void connection::send(stomplay::subscribe cmd, frame_fun fn)
 {
     assert(fn);
-
-    // получаем обработчик подписки
-    stomplay_.add_subscribe(frame, std::move(fn));
-
-    setup_write_timeout(write_timeout_);
-
-    bytes_writed_ += frame.write(bev_);
+    stomplay_.add_subscribe(cmd, std::move(fn));
+    send_command(cmd);
 }
 
-void connection::send(stompconn::send frame, stomplay::fun_type fn)
-{
-    assert(fn);
+/// FIXME вернуть send_temp
+// void connection::send(stompconn::send_temp frame, frame_fun fn)
+// {
+//     assert(fn);
 
-    stomplay_.add_handler(frame, std::move(fn));
+//     // получаем обработчик подписки
+//     stomplay_.add_subscribe(frame, std::move(fn));
 
-    send(std::move(frame));
-}
+//     stomplay_.add_handler(frame, std::move(fn));
 
-void connection::send(stompconn::send_temp frame, stomplay::fun_type fn)
-{
-    assert(fn);
+//     send(std::move(frame));
+// }
 
-    // получаем обработчик подписки
-    stomplay_.add_subscribe(frame, std::move(fn));
-
-    stomplay_.add_handler(frame, std::move(fn));
-
-    send(std::move(frame));
-}
-
-void connection::send(stompconn::ack frame, stomplay::fun_type fn)
-{
-    assert(fn);
-
-    stomplay_.add_handler(frame, std::move(fn));
-
-    send(std::move(frame));
-}
-
-void connection::send(stompconn::nack frame, stomplay::fun_type fn)
-{
-    assert(fn);
-
-    stomplay_.add_handler(frame, std::move(fn));
-
-    send(std::move(frame));
-}
-
-void connection::send(stompconn::begin frame, stomplay::fun_type fn)
-{
-    assert(fn);
-
-    stomplay_.add_handler(frame, std::move(fn));
-
-    send(std::move(frame));
-}
-
-void connection::send(stompconn::commit frame, stomplay::fun_type fn)
-{
-    assert(fn);
-
-    stomplay_.add_handler(frame, std::move(fn));
-
-    send(std::move(frame));
-}
-
-void connection::send(stompconn::abort frame, stomplay::fun_type fn)
-{
-    assert(fn);
-
-    stomplay_.add_handler(frame, std::move(fn));
-
-    send(std::move(frame));
-}
-
-void connection::commit(std::string_view transaction_id, stomplay::fun_type fn)
-{
-    assert(fn);
-    send(stompconn::commit(transaction_id), std::move(fn));
-}
-
-void connection::commit(std::string_view transaction_id)
-{
-    send(stompconn::commit(transaction_id));
-}
-
-void connection::abort(std::string_view transaction_id, stomplay::fun_type fn)
-{
-    assert(fn);
-
-    send(stompconn::abort(transaction_id), std::move(fn));
-}
-
-void connection::abort(std::string_view transaction_id)
-{
-    send(stompconn::abort(transaction_id));
-}
-
-void connection::on_error(stomplay::fun_type fn)
+void connection::on_error(frame_fun fn)
 {
     stomplay_.on_error(std::move(fn));
 }
 
-void connection::on_except(on_error_type fn)
+void connection::on_except(error_fun fn)
 {
-    on_error_fun_ = std::move(fn);
+    on_error_ = std::move(fn);
 }
 
 // minutes from 2020-01-01 as hex string
@@ -528,15 +412,43 @@ void connection::exec_error(std::exception_ptr ex) noexcept
 {
     try
     {
-        if (on_error_fun_)
-            on_error_fun_(ex);
+        status_ = status::error;
+
+        if (on_error_)
+            on_error_(ex);
     }
     catch (...)
     {   }
 }
 
-void connection::once(timeval tv, callback_type fn)
+void connection::send_command(stomplay::command& cmd)
+{
+    setup_write_timeout(write_timeout_);
+    bytes_writed_ += cmd.write_cmd(bev_);
+}
+
+void connection::send_command(stomplay::command& cmd, frame_fun fn)
+{
+    assert(fn);
+    stomplay_.add_receipt(cmd, std::move(fn));
+    send_command(cmd);
+}
+
+void connection::send_command(stomplay::body_command& cmd)
+{
+    setup_write_timeout(write_timeout_);
+    bytes_writed_ += cmd.write_body_cmd(bev_);
+}
+
+void connection::send_command(stomplay::body_command& cmd, frame_fun fn)
+{
+    assert(fn);
+    stomplay_.add_receipt(cmd, std::move(fn));
+    send_command(cmd);
+}
+
+void connection::once(timeval tv, timer_fun fn)
 {
     make_once(queue_, -1, EV_TIMEOUT, 
-        tv, new callback_type(std::move(fn)));
+        tv, proxy_call(std::move(fn)));
 }

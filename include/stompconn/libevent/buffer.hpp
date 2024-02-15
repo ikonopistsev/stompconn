@@ -174,7 +174,7 @@ public:
             evbuffer_add(assert_handle(), data, len));
     }
 
-    void append(std::string_view text)
+    constexpr void append(std::string_view text)
     {
         append(text.data(), text.size());
     }

@@ -1,9 +1,10 @@
-#include "stompconn/stomplay/receipt_handler.hpp"
+#include "stompconn/stomplay/handler/receipt.hpp"
 
 namespace stompconn {
 namespace stomplay {
+namespace handler {
 
-void receipt_handler::exec(iterator i, packet p) noexcept
+void receipt::exec(iterator i, frame p) noexcept
 {
     try
     {
@@ -15,19 +16,19 @@ void receipt_handler::exec(iterator i, packet p) noexcept
     {   }
 }
 
-std::string_view receipt_handler::create(std::string_view id, fn_type fn)
+std::string_view receipt::create(std::string_view id, fn_type fn)
 {
     auto& i = receipt_.emplace_front(id, std::move(fn));
     return { std::get<0>(i) };
 }
 
-std::string_view receipt_handler::create(fn_type fn)
+std::string_view receipt::create(fn_type fn)
 {
     auto receipt_id = std::to_string(++receipt_seq_id_);
     return create(std::string_view{receipt_id}, std::move(fn));
 }
 
-bool receipt_handler::call(std::string_view id, packet p) noexcept
+bool receipt::call(std::string_view id, frame p) noexcept
 {
     auto i = receipt_.begin();
     auto e = receipt_.end();
@@ -50,10 +51,11 @@ bool receipt_handler::call(std::string_view id, packet p) noexcept
     return false;
 }
 
-void receipt_handler::clear()
+void receipt::clear()
 {
     receipt_.clear();
 }
 
+} // namespace handler
 } // namespace stomplay
 } // namespace stompconn

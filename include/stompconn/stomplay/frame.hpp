@@ -1,204 +1,248 @@
-﻿#pragma once
+#pragma once
 
 #include "stompconn/buffer.hpp"
-#include "stompconn/buffer_event.hpp"
-#include "stompconn/stomplay/header.hpp"
 #include "stompconn/stomplay/header_store.hpp"
-#include <functional>   
+#include "stomptalk/parser.h"
+#include <functional>
 
 namespace stompconn {
 namespace stomplay {
 
-class packet;
-class subscription_handler;
+class frame;
+using frame_fun = std::function<void(frame)>;
 
 class frame
 {
 protected:
-    buffer data_{};
-
-public:
-    frame() = default;
-    virtual ~frame() = default;
-
-    frame(frame&&) = default;
-    frame& operator=(frame&&) = default;
-
-    void push(std::string_view key, std::string_view value);
-
-    void push(header::known_ref hdr)
-    {
-        push(hdr.text);
-    }
-
-    template<class K, class V>
-    void push(const header::known<K,V>& hdr)
-    {
-        push(hdr.prepared_key);
-        push(hdr.value);
-    }
-
-protected:
-    void push(std::string_view text);
-
-public:
-    // complete frame before write
-    virtual void complete();
-
-    virtual int write(evutil_socket_t sock);
-
-    virtual int write(buffer_event& bev);
-
-    virtual buffer data();
-
-    virtual std::string str() const;
-};
-
-class logon final
-    : public frame
-{
-public:
-    logon(std::string_view host, std::string_view login,
-        std::string_view passcode);
-
-    logon(std::string_view host, std::string_view login);
-
-    logon(std::string_view host);
-};
-
-class subscribe final
-    : public frame
-{
-public:
-    typedef std::function<void(packet)> fn_type;
-
-private:
-    fn_type fn_{};
-
-public:
-    subscribe(std::string_view destination, fn_type fn);
-
-    // возвращает идентификатор подписки
-    std::string add_subscribe(subscription_handler& handler);
-};
-
-class body_frame
-    : public frame
-{
-protected:
+    const stomplay::header_store& header_;
+    // метка сессии авторизованного подключения
+    // пробрасывается во все фреймы после успешной авторизации
+    std::string_view session_{};
+    std::string_view subscription_id_{};
+    std::uint64_t method_{};
     buffer payload_{};
 
 public:
-    body_frame() = default;
-    body_frame(body_frame&&) = default;
-    body_frame& operator=(body_frame&&) = default;
-    virtual ~body_frame() = default;
+    frame(frame&&) = default;
 
-    void payload(buffer payload);
+    frame(const stomplay::header_store& header, std::string_view session,
+        std::uint64_t method, buffer payload)
+        : header_(header)
+        , session_(session)
+        , method_(method)
+        , payload_(std::move(payload))
+    {   }
 
-    void push_payload(buffer payload);
+    void set_subscription_id(std::string_view subscription_id) noexcept
+    {
+        subscription_id_ = subscription_id;
+    }
 
-    void push_payload(const char *data, std::size_t size);
+    bool error() const noexcept
+    {
+        return method_ == st_method_error;
+    }
 
-    virtual void complete() override;
+    operator bool() const noexcept
+    {
+        return !error();
+    }
 
-    virtual std::string str() const override;
+    auto get(std::string_view key) const noexcept
+    {
+        return header_.get(key);
+    }
+
+    auto get(std::uint64_t key_id) const noexcept
+    {
+        return header_.get(key_id);
+    }
+
+    auto get_content_type() const noexcept
+    {
+        return header_.get(st_header_content_type);
+    }
+
+    auto get_content_encoding() const noexcept
+    {
+        return header_.get(st_header_content_encoding);
+    }
+
+    auto get_correlation_id() const noexcept
+    {
+        return header_.get(st_header_correlation_id);
+    }
+
+    auto get_reply_to() const noexcept
+    {
+        return header_.get(st_header_reply_to);
+    }
+
+    auto get_expires() const noexcept
+    {
+        return header_.get(st_header_expires);
+    }
+
+    auto get_message_id() const noexcept
+    {
+        return header_.get(st_header_message_id);
+    }
+
+    auto get_amqp_type() const noexcept
+    {
+        return header_.get(st_header_amqp_type);
+    }
+
+    auto get_amqp_message_id() const noexcept
+    {
+        return header_.get(st_header_amqp_message_id);
+    }
+
+    auto get_timestamp() const noexcept
+    {
+        return header_.get(st_header_timestamp);
+    }
+
+    auto get_user_id() const noexcept
+    {
+        return header_.get(st_header_user_id);
+    }
+
+    auto get_app_id() const noexcept
+    {
+        return header_.get(st_header_app_id);
+    }
+
+    auto get_cluster_id() const noexcept
+    {
+        return header_.get(st_header_cluster_id);
+    }
+
+    auto get_ack() const noexcept
+    {
+        return header_.get(st_header_ack);
+    }
+
+    auto get_subscription() const noexcept
+    {
+        auto rc = header_.get(st_header_subscription);
+        if (rc.empty())
+        {
+            // used for get id from subscribe receipt only!!
+            rc = subscription_id_;
+        }
+        return rc;
+    }
+
+    auto get_destination() const noexcept
+    {
+        return header_.get(st_header_destination);
+    }
+
+    auto get_id() const noexcept
+    {
+        return header_.get(st_header_id);
+    }
+
+    auto get_transaction() const noexcept
+    {
+        return header_.get(st_header_transaction);
+    }
+
+    auto get_receipt() const noexcept
+    {
+        return header_.get(st_header_receipt);
+    }
+
+    auto get_receipt_id() const noexcept
+    {
+        return header_.get(st_header_receipt_id);
+    }
+
+    auto get_heart_beat() const noexcept
+    {
+        return header_.get(st_header_heart_beat);
+    }
+
+    bool must_ack() const noexcept
+    {
+        return !get_ack().empty();
+    }
+
+    std::string_view session() const noexcept
+    {
+        return session_;
+    }
+
+    auto method() const noexcept
+    {
+        return method_;
+    }
+
+    auto payload() const noexcept
+    {
+        return buffer_ref{payload_.handle()};
+    }
+
+    void copyout(buffer& other)
+    {
+        other.append(std::move(payload_));
+    }
+
+    auto data() const noexcept
+    {
+        return payload();
+    }
+
+    std::size_t size() const noexcept
+    {
+        return payload_.size();
+    }
+
+    std::size_t empty() const noexcept
+    {
+        return payload_.empty();
+    }
+
+private:    
+    static void replace_all(std::string &str, const std::string& from, const std::string& to)
+    {
+        size_t start_pos = 0;
+        while((start_pos = str.find(from, start_pos)) != std::string::npos) 
+        {
+            str.replace(start_pos, from.length(), to);
+            start_pos += to.length();
+        }
+    }
+
+public:
+    std::string dump(char m = ' ', char p = ' ', char h = ';') const
+    {
+        std::string rc;
+        std::string_view method{stomptalk_method_str(method_)};
+        auto header_dump = header_.dump(h);
+        rc.reserve(method.size() + header_dump.size() + size() + 2);
+        rc += method;
+        rc += m;
+        rc += header_dump;
+        rc += p;
+        if (!payload_.empty())
+        {
+            auto str = payload_.str();
+            std::replace(std::begin(str), std::end(str), '\n', ' ');
+            std::replace(std::begin(str), std::end(str), '\r', ' ');
+            std::replace(std::begin(str), std::end(str), '\t', ' ');
+            std::size_t sz = 0;
+            do {
+                sz = str.length();
+                replace_all(str, "  ", " ");
+            } while (sz != str.length());
+
+            rc += str;
+        }
+        return rc;
+    }
 };
 
-// rabbitmq temp-queue feature
-// https://www.rabbitmq.com/stomp.html#d.tqd
-class send_temp final
-    : public body_frame
-{
-public:
-    typedef std::function<void(packet)> fn_type;
-private:
-    fn_type fn_{};
-    std::string reply_to_{};
-
-public:
-    send_temp(std::string_view destination, std::string_view reply_to, fn_type fn);
-
-    // возвращает идентификатор подписки
-    std::string add_subscribe(subscription_handler& handler);
-};
-
-class ack
-    : public frame
-{
-public:
-    ack(std::string_view ack_id);
-};
-
-class nack
-    : public frame
-{
-public:
-    nack(std::string_view ack_id);
-};
-
-class begin
-    : public frame
-{
-public:
-    begin(std::string_view transaction_id);
-    begin(std::size_t transaction_id);
-};
-
-class commit
-    : public frame
-{
-public:
-    commit(std::string_view transaction_id);
-};
-
-class abort
-    : public frame
-{
-public:
-    abort(std::string_view transaction_id);
-};
-
-class receipt
-    : public frame
-{
-public:
-    receipt(std::string_view receipt_id);
-};
-
-class connected
-    : public frame
-{
-public:
-    connected(std::string_view session, std::string_view server_version);
-    connected(std::string_view session);
-};
-
-class send
-    : public body_frame
-{
-public:
-    send(std::string_view destination);
-};
-
-class error
-    : public body_frame
-{
-public:
-    error(std::string_view message, std::string_view receipt_id);
-    error(std::string_view message);
-};
-
-class message
-    : public body_frame
-{
-public:
-    message(std::string_view destination,
-            std::string_view subscrition, std::string_view message_id);
-    message(std::string_view destination,
-            std::string_view subscrition, std::size_t message_id);
-};
-
-} // namespace stompaly
+} // namespace stomplay
 } // namespace stompconn
-

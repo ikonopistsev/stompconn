@@ -24,10 +24,9 @@ if (WIN32)
 endif()
 
 set(source
-  src/stomplay/frame.cpp
-  src/stomplay/subscription_handler.cpp
-  src/stomplay/receipt_handler.cpp
-  src/stomplay/client.cpp
+  src/stomplay/protocol.cpp
+  src/stomplay/handler/subscription.cpp
+  src/stomplay/handler/receipt.cpp
   src/connection.cpp
   src/version.cpp
 )

@@ -76,7 +76,7 @@ using timer_fun = std::function<void()>;
 using generic_fun = 
     std::function<void(evutil_socket_t fd, short ef)>;
 
-auto proxy_call(timer_fun& fn)
+static inline auto proxy_call(timer_fun& fn)
 {
     return std::make_pair(&fn,
         [](evutil_socket_t, short, void *arg){
@@ -89,8 +89,23 @@ auto proxy_call(timer_fun& fn)
             {   }
         });
 }
+
+static inline auto proxy_call(timer_fun&& fn)
+{
+    return std::make_pair(new timer_fun(std::move(fn)),
+        [](evutil_socket_t, short, void *arg){
+            assert(arg);
+            auto fn = static_cast<timer_fun*>(arg);
+            try {
+                (*fn)();
+            }
+            catch (...)
+            {   }
+            delete fn;
+        });
+}
  
-auto proxy_call(generic_fun& fn)
+static inline auto proxy_call(generic_fun& fn)
 {
     return std::make_pair(&fn,
         [](evutil_socket_t fd, short ef, void *arg){
@@ -105,9 +120,9 @@ auto proxy_call(generic_fun& fn)
 }
 
 template<class F>
-auto proxy_call(F&& fn)
+static auto proxy_call(F& fn)
 {
-    return std::make_pair(new generic_fun{std::forward<F>(fn)},
+    return std::make_pair(&fn,
         [](evutil_socket_t fd, short ef, void *arg){
             assert(arg);
             auto fn = static_cast<F*>(arg);
@@ -116,7 +131,6 @@ auto proxy_call(F&& fn)
             }
             catch (...)
             {   }
-            delete fn;
         });
 }
 
