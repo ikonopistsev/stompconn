@@ -140,24 +140,6 @@ void connection::exec_logon(const frame_fun& fn, stomplay::frame p) noexcept
     }
 }
 
-void connection::exec_unsubscribe(const frame_fun& fn,
-    const std::string& id, stomplay::frame p) noexcept
-{
-    try
-    {
-        assert(fn);
-        assert(!id.empty());
-        // удаляем обработчик подписки
-        stomplay_.unsubscribe(id);
-
-        fn(std::move(p));
-    }
-    catch (...)
-    {
-        exec_error(std::current_exception());
-    }
-}
-
 void connection::exec_event_fun(short what) noexcept
 {
     try
@@ -236,15 +218,19 @@ void connection::connect(evdns_base* dns,
     status_ = status::connecting;
 }
 
-void connection::unsubscribe(std::string_view id, frame_fun real_fn)
+void connection::unsubscribe(std::string_view id, frame_fun fn)
 {
-    assert(real_fn);
+    assert(fn);
 
-    /// FIXME: тут явно ересь какая-то
-    stomplay::unsubscribe frame{id, std::move(real_fn)};
-    send_command(frame, [& , id = std::string(id), fn = std::move(real_fn)](stomplay::frame p) {
-          // вызываем клиентский обработчик подписки
-          exec_unsubscribe(fn, id, std::move(p));
+    stomplay::unsubscribe frame{id};
+    send_command(frame, 
+        [&, fn, subs_id = std::string{id}](stomplay::frame p) {
+            try {
+                stomplay_.unsubscribe(subs_id);
+                fn(std::move(p));
+            } catch (...) {
+                exec_error(std::current_exception());
+            }
     });
 }
 
@@ -423,6 +409,10 @@ void connection::exec_error(std::exception_ptr ex) noexcept
 
 void connection::send_command(stomplay::command& cmd)
 {
+#ifdef STOMPCONN_DEBUG
+    std::cout << cmd.dump() << std::endl;
+#endif
+
     setup_write_timeout(write_timeout_);
     bytes_writed_ += cmd.write_cmd(bev_);
 }

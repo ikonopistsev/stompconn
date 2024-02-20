@@ -17,8 +17,10 @@ void subscription::exec(iterator i, frame p) noexcept
     {   }
 }
 
+// необходимо вернуть ссылку на созданую подписку
+// иначе string_view потеряет связь со временныым объектом
 template<class S, class T>
-auto try_emplace(S& storage, T&& id, frame_fun fn)
+auto& try_emplace(S& storage, T&& id, frame_fun fn)
 {
     if (!fn)
         throw std::runtime_error("subs handler empty");
@@ -32,7 +34,7 @@ auto try_emplace(S& storage, T&& id, frame_fun fn)
 
 std::string_view subscription::create_subscription(std::size_t id, frame_fun fn)
 {
-    return try_emplace(storage_, id, std::move(fn));
+    return { try_emplace(storage_, id, std::move(fn)) };
 }
 
 std::string_view subscription::create_subscription(std::string_view id, frame_fun fn)
@@ -40,7 +42,7 @@ std::string_view subscription::create_subscription(std::string_view id, frame_fu
     if (id.empty())
         throw std::runtime_error("subs id empty");
 
-    return try_emplace(storage_, id, std::move(fn));
+    return { try_emplace(storage_, id, std::move(fn)) };
 }
 
 std::string_view subscription::create_subscription(frame_fun fn)

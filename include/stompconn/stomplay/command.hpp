@@ -180,12 +180,9 @@ public:
 class unsubscribe final
     : public command
 {
-    frame_fun fn_{};
-
 public:
-    unsubscribe(std::string_view subs_id, frame_fun fn)
+    unsubscribe(std::string_view subs_id)
         : command{"UNSUBSCRIBE"}
-        , fn_{std::move(fn)}
     {
         using namespace std::literals;
         value_not_empty(subs_id, "subscription id empty"sv);

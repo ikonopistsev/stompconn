@@ -14,8 +14,8 @@ struct id
     std::string value;
 
     id() = default;
-    id(const id&) = default;
-    id& operator=(const id&) = default;
+    id(const id&) = delete;
+    id& operator=(const id&) = delete;
     id(id&&) = default;
     id& operator=(id&&) = default;
 
@@ -23,7 +23,7 @@ struct id
         : value{val}
     {   }
 
-    static inline std::string to_hex(std::size_t id, std::size_t base = 16)
+    static inline std::string to_string(std::size_t id, std::size_t base = 16)
     {
         // подходит для 64-битных чисел
         constexpr auto max_digits = 16;
@@ -35,7 +35,7 @@ struct id
     }
 
     id(std::size_t val)
-        : value{to_hex(val)}
+        : value{to_string(val)}
     {  }
 
     // приведение к строке

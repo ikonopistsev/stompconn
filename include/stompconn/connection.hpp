@@ -124,9 +124,6 @@ private:
 
     void exec_logon(const frame_fun& fn, stomplay::frame p) noexcept;
 
-    void exec_unsubscribe(const frame_fun& fn,
-                          const std::string& id, stomplay::frame p) noexcept;
-
     void exec_event_fun(short ef) noexcept;
 
     void update_connection_id() noexcept;

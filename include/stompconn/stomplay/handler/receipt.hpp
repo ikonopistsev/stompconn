@@ -1,6 +1,7 @@
 #pragma once
 
 #include "stompconn/stomplay/frame.hpp"
+#include "stompconn/stomplay/handler/id.hpp"
 
 #include <functional>
 #include <list>
@@ -32,10 +33,10 @@ public:
     receipt() = default;
 
     // установить собственный идентификтор подписки
-    std::string_view create(std::string_view id, fn_type fn);
+    std::string& create(std::string_view id, fn_type fn);
 
     // использовать автоматический идентификатор подписки
-    std::string_view create(fn_type fn);
+    std::string& create(fn_type fn);
     
     bool call(std::string_view id, frame p) noexcept;
 

@@ -282,6 +282,10 @@ std::string_view protocol::add_subscribe(subscribe& subs, fun_type fn)
     add_receipt(subs, [this, subscription_id, fn](auto frame) {
         try
         {
+            // FIXME - ошибка подписки
+            // приведет к отключению
+            // нужно правильно обработать
+            // вероятно subscription_id не нужно передавать дальше
             frame.set_subscription_id(subscription_id);
 
             if (!frame)

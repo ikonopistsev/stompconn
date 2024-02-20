@@ -16,15 +16,15 @@ void receipt::exec(iterator i, frame p) noexcept
     {   }
 }
 
-std::string_view receipt::create(std::string_view id, fn_type fn)
+std::string& receipt::create(std::string_view id, fn_type fn)
 {
     auto& i = receipt_.emplace_front(id, std::move(fn));
-    return { std::get<0>(i) };
+    return std::get<0>(i);
 }
 
-std::string_view receipt::create(fn_type fn)
+std::string& receipt::create(fn_type fn)
 {
-    auto receipt_id = std::to_string(++receipt_seq_id_);
+    auto receipt_id = handler::id::to_string(++receipt_seq_id_);
     return create(std::string_view{receipt_id}, std::move(fn));
 }
 
