@@ -1,24 +1,41 @@
 #pragma once
 
-#include "stompconn/libevent.hpp"
-#include "stompconn/header_store.hpp"
+#include "stompconn/buffer.hpp"
+#include "stompconn/stomplay/header_store.hpp"
 #include "stomptalk/parser.h"
+#include <functional>
 
 namespace stompconn {
+namespace stomplay {
 
-class packet
+class frame;
+using frame_fun = std::function<void(frame)>;
+
+class frame
 {
 protected:
-    const header_store& header_;
+    const stomplay::header_store& header_;
+    // метка сессии авторизованного подключения
+    // пробрасывается во все фреймы после успешной авторизации
     std::string_view session_{};
     std::string_view subscription_id_{};
     std::uint64_t method_{};
     buffer payload_{};
 
 public:
-    packet(packet&&) = default;
+    static void replace_all(std::string &str, const std::string& from, const std::string& to)
+    {
+        size_t start_pos = 0;
+        while((start_pos = str.find(from, start_pos)) != std::string::npos) 
+        {
+            str.replace(start_pos, from.length(), to);
+            start_pos += to.length();
+        }
+    }
 
-    packet(const header_store& header, std::string_view session,
+    frame(frame&&) = default;
+
+    frame(const stomplay::header_store& header, std::string_view session,
         std::uint64_t method, buffer payload)
         : header_(header)
         , session_(session)
@@ -44,6 +61,11 @@ public:
     auto get(std::string_view key) const noexcept
     {
         return header_.get(key);
+    }
+
+    auto get(std::uint64_t key_id) const noexcept
+    {
+        return header_.get(key_id);
     }
 
     auto get_content_type() const noexcept
@@ -167,9 +189,9 @@ public:
         return method_;
     }
 
-    buffer_ref payload() const noexcept
+    auto payload() const noexcept
     {
-        return buffer_ref(payload_.handle());
+        return buffer_ref{payload_.handle()};
     }
 
     void copyout(buffer& other)
@@ -177,7 +199,7 @@ public:
         other.append(std::move(payload_));
     }
 
-    buffer_ref data() const noexcept
+    auto data() const noexcept
     {
         return payload();
     }
@@ -190,17 +212,6 @@ public:
     std::size_t empty() const noexcept
     {
         return payload_.empty();
-    }
-
-private:    
-    static void replace_all(std::string &str, const std::string& from, const std::string& to)
-    {
-        size_t start_pos = 0;
-        while((start_pos = str.find(from, start_pos)) != std::string::npos) 
-        {
-            str.replace(start_pos, from.length(), to);
-            start_pos += to.length();
-        }
     }
 
 public:
@@ -217,10 +228,9 @@ public:
         if (!payload_.empty())
         {
             auto str = payload_.str();
-            // rabbitmq issue
-            replace_all(str, "\n", " ");
-            replace_all(str, "\r", " ");
-            replace_all(str, "\t", " ");
+            std::replace(std::begin(str), std::end(str), '\n', ' ');
+            std::replace(std::begin(str), std::end(str), '\r', ' ');
+            std::replace(std::begin(str), std::end(str), '\t', ' ');
             std::size_t sz = 0;
             do {
                 sz = str.length();
@@ -233,4 +243,5 @@ public:
     }
 };
 
+} // namespace stomplay
 } // namespace stompconn

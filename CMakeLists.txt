@@ -24,12 +24,11 @@ if (WIN32)
 endif()
 
 set(source
-  src/frame.cpp
-  src/handler.cpp
-  src/stomplay.cpp
+  src/stomplay/protocol.cpp
+  src/stomplay/handler/subscription.cpp
+  src/stomplay/handler/receipt.cpp
   src/connection.cpp
   src/version.cpp
-  src/libevent.cpp
 )
 
 add_library(stompconn STATIC ${source})
