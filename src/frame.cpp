@@ -6,6 +6,38 @@
 using namespace stompconn;
 using namespace std::literals;
 
+/*
+\r (octet 92 and 114) translates to carriage return (octet 13)
+\n (octet 92 and 110) translates to line feed (octet 10)
+\c (octet 92 and 99) translates to : (octet 58)
+\\ (octet 92 and 92) translates to \ (octet 92)
+*/
+
+static inline void push_encoded(buffer& buf, std::string_view str)
+{
+    for (auto c : str)
+    {
+        switch (c)
+        {
+        case '\n':
+            buf.append("\\n"sv);
+            break;
+        case '\r':
+            buf.append("\\r"sv);
+            break;
+        case ':':
+            buf.append("\\c"sv);
+            break;
+        case '\\':
+            buf.append("\\\\"sv);
+            break;
+        default:
+            buf.append(&c, 1);
+            break;
+        }
+    }
+}
+
 void frame::push_header(std::string_view key, std::string_view value)
 {
     if (key.empty())
@@ -15,9 +47,9 @@ void frame::push_header(std::string_view key, std::string_view value)
         throw std::logic_error("frame header value empty");
 
     data_.append("\n"sv);
-    data_.append(key);
+    push_encoded(data_, key);
     data_.append(":"sv);
-    data_.append(value);
+    push_encoded(data_, value);
 }
 
 // all ref
@@ -38,7 +70,7 @@ void frame::push_header_val(std::string_view prepared_key,
         throw std::logic_error("frame header value empty");
 
     data_.append(prepared_key);
-    data_.append(value);
+    push_encoded(data_, value);
 }
 
 void frame::push_method(std::string_view method)
