@@ -125,6 +125,8 @@ public:
     virtual void complete() override;
 
     virtual std::string str() const override;
+
+    virtual std::string dump(char m = ' ', char p = ' ', char h = ';') const;
 };
 
 // rabbitmq temp-queue feature

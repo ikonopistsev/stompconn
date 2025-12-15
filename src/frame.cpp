@@ -1,5 +1,6 @@
 #include "stompconn/frame.hpp"
 #include "stompconn/handler.hpp"
+#include "stompconn/packet.hpp"
 #include <stdexcept>
 #include <iostream>
 
@@ -205,6 +206,19 @@ std::string body_frame::str() const
             rc += payload_.str();
         rc += " >\n"sv;
     }
+    return rc;
+}
+
+std::string body_frame::dump(char m, char p, char h) const
+{
+    auto rc = data_.str();
+    auto size = payload_.size();
+    if (size)
+    {     
+        rc += ' ';
+        rc += payload_.str();
+    }
+    packet::escape_str(rc, m, p, h);
     return rc;
 }
 

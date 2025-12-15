@@ -395,7 +395,7 @@ public:
 #ifdef STOMPCONN_OPENSSL
 #ifdef EVENT__HAVE_OPENSSL
     void create(event_base* queue, evutil_socket_t fd, struct ssl_st *ssl,
-        int opt = BEV_OPT_CLOSE_ON_FREE);
+        int opt = BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
 #endif
 #endif
 
@@ -432,7 +432,7 @@ public:
     void set(bufferevent_data_cb rdfn, bufferevent_data_cb wrfn,
         bufferevent_event_cb evfn, void *arg) noexcept;
 
-    void set_timeout(timeval *timeout_read, timeval *timeout_write);
+    void set_timeout(const timeval *timeout_read, const timeval *timeout_write);
 
     void write(const void *data, std::size_t size)
     {

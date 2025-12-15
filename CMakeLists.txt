@@ -39,7 +39,9 @@ if (STOMPCONN_WITH_STATIC_LIBEVENT)
   add_subdirectory(libevent)
 endif()
 
+set_target_properties(stompconn PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 target_link_libraries(stompconn PRIVATE event_core stomptalk)
+
 
 if (EVENT__HAVE_OPENSSL AND STOMPCONN_OPENSSL)
   target_link_libraries(stompconn PRIVATE event_openssl)

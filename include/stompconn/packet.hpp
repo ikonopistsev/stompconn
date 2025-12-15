@@ -192,7 +192,7 @@ public:
         return payload_.empty();
     }
 
-private:    
+public:
     static void replace_all(std::string &str, const std::string& from, const std::string& to)
     {
         size_t start_pos = 0;
@@ -203,7 +203,18 @@ private:
         }
     }
 
-public:
+    static void escape_str(std::string& str, char m = ' ', char p = ' ', char h = ';')
+    {
+        replace_all(str, "\n", " ");
+        replace_all(str, "\r", " ");
+        replace_all(str, "\t", " ");
+        std::size_t sz = 0;
+        do {
+            sz = str.length();
+            replace_all(str, "  ", " ");
+        } while (sz != str.length());
+    }
+
     std::string dump(char m = ' ', char p = ' ', char h = ';') const
     {
         std::string rc;
@@ -217,16 +228,7 @@ public:
         if (!payload_.empty())
         {
             auto str = payload_.str();
-            // rabbitmq issue
-            replace_all(str, "\n", " ");
-            replace_all(str, "\r", " ");
-            replace_all(str, "\t", " ");
-            std::size_t sz = 0;
-            do {
-                sz = str.length();
-                replace_all(str, "  ", " ");
-            } while (sz != str.length());
-
+            escape_str(str, m, p, h);
             rc += str;
         }
         return rc;

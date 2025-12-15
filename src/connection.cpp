@@ -193,7 +193,10 @@ void connection::create(struct ssl_st *ssl)
     bev_.destroy();
     timeout_.destroy();
 
-    bev_.create(queue_, -1, ssl);
+    bev_.create(queue_, -1, ssl, 
+        BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
+
+    bufferevent_ssl_set_flags(bev_, BUFFEREVENT_SSL_DIRTY_SHUTDOWN);
 
     bev_.set(&proxy<connection>::recvcb,
         nullptr, &proxy<connection>::evcb, this);
@@ -249,6 +252,21 @@ void connection::connect(evdns_base* dns, const std::string& host, int port, tim
     // тк при ошибке коннетка bev будет удалет в каллбеке
     bev_.connect(dns, host, port);
 }
+
+#ifdef STOMPCONN_OPENSSL
+#ifdef EVENT__HAVE_OPENSSL
+void connection::connect(ssl_st* ssl, evdns_base* dns, 
+    const std::string& host, int port, const timeval& timeout)
+{
+    create(ssl);
+    bev_.set_timeout(nullptr, &timeout);
+    connecting_ = true;
+    // при работе с bev этот вызов должен быть посленим 
+    // тк при ошибке коннетка bev будет удалет в каллбеке
+    bev_.connect(dns, host, port);
+}
+#endif // EVENT__HAVE_OPENSSL
+#endif // STOMPCONN_OPENSSL
 
 void connection::unsubscribe(std::string_view id, stomplay::fun_type real_fn)
 {

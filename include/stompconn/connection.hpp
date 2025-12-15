@@ -147,6 +147,21 @@ public:
         connect(nullptr, host, port, timeout);
     }
 
+#ifdef STOMPCONN_OPENSSL
+#ifdef EVENT__HAVE_OPENSSL
+    void connect(ssl_st* ssl, evdns_base* dns, 
+        const std::string& host, int port, const timeval& timeout);
+    
+    template<class Rep, class Period>
+    void connect(ssl_st* ssl, evdns_base* dns, 
+        const std::string& host, int port,
+        std::chrono::duration<Rep, Period> timeout)
+    {
+        connect(ssl, dns, host, port, detail::make_timeval(timeout));
+    }
+#endif // EVENT__HAVE_OPENSSL
+#endif // STOMPCONN_OPENSSL
+
     void disconnect() noexcept;
 
     // асинхронное отключение
@@ -304,7 +319,11 @@ public:
 
     void send(stompconn::logon frame, stomplay::fun_type fn);
 
+    void send(stompconn::logon frame) = delete;
+
     void send(stompconn::subscribe frame, stomplay::fun_type fn);
+
+    void send(stompconn::subscribe frame) = delete;
 
     void send(stompconn::ack frame, stomplay::fun_type fn);
 

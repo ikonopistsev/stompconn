@@ -116,7 +116,7 @@ void bev::set(bufferevent_data_cb rdfn, bufferevent_data_cb wrfn,
     bufferevent_setcb(assert_handle(), rdfn, wrfn, evfn, arg);
 }
 
-void bev::set_timeout(timeval *timeout_read, timeval *timeout_write)
+void bev::set_timeout(const timeval *timeout_read, const timeval *timeout_write)
 {
     bufferevent_set_timeouts(assert_handle(), timeout_read, timeout_write);
 }
