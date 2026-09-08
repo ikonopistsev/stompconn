@@ -1,45 +1,43 @@
 #include "stompconn/handler.hpp"
-#include "stompconn/conv.hpp"
+#include <charconv>
+#include <limits>
+#include <stdexcept>
 
 using namespace stompconn;
 
-void receipt_handler::exec(iterator i, packet p) noexcept
-{
-    try
-    {
-        auto& fn = std::get<1>(*i);
-        assert(fn);
-        fn(std::move(p));
-    }
-    catch (...)
-    {   }
-}
-
 std::string_view receipt_handler::create(fn_type fn)
 {
-    hex_text_type hex_id;
-    to_hex_print(hex_id, ++receipt_seq_id_);
-    auto& i = receipt_.emplace_front(std::string_view{hex_id}, std::move(fn));
-    return sv(std::get<0>(i));
+    if (receipt_seq_id_ == std::numeric_limits<std::size_t>::max())
+        throw std::overflow_error("receipt sequence exhausted");
+    char hex_id[2 * sizeof(std::size_t)];
+    const auto end = std::to_chars(hex_id, hex_id + sizeof(hex_id),
+        ++receipt_seq_id_, 16).ptr;
+    auto i = receipt_.emplace(std::string{hex_id, end}, std::move(fn));
+    return i.first->first;
 }
 
 bool receipt_handler::call(std::string_view id, packet p) noexcept
 {
-    auto i = receipt_.begin();
-    auto e = receipt_.end();
-    while (i != e)
+    try
     {
-        auto& receipt_id = std::get<0>(*i);
-        if (receipt_id == id)
+        auto i = receipt_.find(std::string{id});
+        if (i == receipt_.end())
+            return false;
+        // Remove before invoking user code: it may clear the dispatcher,
+        // re-enter call(), or destroy its owning connection.
+        auto fn = std::move(i->second);
+        receipt_.erase(i);
+        try
         {
-            exec(i, std::move(p));
-            receipt_.erase(i);
-            return true;
+            if (fn)
+                fn(std::move(p));
         }
-
-        ++i;
+        catch (...)
+        {   }
+        return true;
     }
-
+    catch (...)
+    {   }
     return false;
 }
 

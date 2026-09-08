@@ -4,22 +4,18 @@
 #include "stompconn/basic_text.hpp"
 
 #include <functional>
-#include <list>
+#include <string>
+#include <unordered_map>
 
 namespace stompconn {
 
 class receipt_handler
 {
-    using hex_text_type = basic_text<char, 20>;
     using fn_type = std::function<void(packet)>;
-    using value_type = std::pair<hex_text_type, fn_type>;
-    using storage_type = std::list<value_type>;
-    using iterator = storage_type::iterator;
+    using storage_type = std::unordered_map<std::string, fn_type>;
 
     std::size_t receipt_seq_id_{};
     storage_type receipt_{};
-
-    void exec(iterator i, packet p) noexcept;
 
 public:
     receipt_handler() = default;
