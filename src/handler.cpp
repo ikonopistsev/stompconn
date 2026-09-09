@@ -7,12 +7,23 @@ using namespace stompconn;
 
 std::string_view receipt_handler::create(fn_type fn)
 {
+    return insert(reserve(), std::move(fn));
+}
+
+std::string receipt_handler::reserve()
+{
     if (receipt_seq_id_ == std::numeric_limits<std::size_t>::max())
         throw std::overflow_error("receipt sequence exhausted");
     char hex_id[2 * sizeof(std::size_t)];
     const auto end = std::to_chars(hex_id, hex_id + sizeof(hex_id),
         ++receipt_seq_id_, 16).ptr;
-    auto i = receipt_.emplace(std::string{hex_id, end}, std::move(fn));
+    return std::string{hex_id, end};
+}
+
+std::string_view receipt_handler::insert(std::string id, fn_type fn)
+{
+    auto i = receipt_.emplace(std::move(id), std::move(fn));
+    if (!i.second) throw std::logic_error("duplicate receipt ID");
     return i.first->first;
 }
 

@@ -20,6 +20,7 @@ public:
     using on_error_type = std::function<void(std::exception_ptr)>;
 
 private:
+    friend class connection;
     stomptalk::parser stomp_{};
     stomptalk::parser_hook hook_{*this};
     header_store header_store_{};

@@ -337,6 +337,12 @@ public:
 
     void send(stompconn::send frame, stomplay::fun_type fn);
 
+    // Reserves a unique receipt ID and finalizes SEND without a pending callback.
+    prepared_frame prepare(stompconn::send frame);
+
+    // Registers the receipt callback and consumes the exact prepared bytes.
+    void send(prepared_frame frame, stomplay::fun_type fn);
+
     void send(stompconn::send_temp frame, stomplay::fun_type fn);
 
     template<class F>

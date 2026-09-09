@@ -23,3 +23,17 @@ or the handlers are cleared/destroyed; connection send code copies it into the f
 The public `send(frame, callback)` API is unchanged. Fresh connection/parser
 creation, transaction splitting and publication deadlines are implemented by
 cdcmoud, not this library.
+
+`connection::prepare(send)` reserves a real receipt ID and returns a move-only
+`prepared_frame` with final wire bytes, without socket output or a pending callback.
+`size()` includes the receipt header and NUL. `send(std::move(prepared), callback)`
+registers the callback and consumes those exact bytes. It rejects a different
+connection/session. Discarding an unsent prepared frame requires no cleanup;
+its reserved sequence number is never reused. Pending receipt callbacks are still
+bounded by the currently sent part, rather than by all prepared messages.
+Existing `send(frame, callback)` callers keep their original path and behavior.
+
+The parent publisher wire tests independently check F/F−1 limits, escaping,
+content-length, receipt growth across hexadecimal `f`→`10`, and no BEGIN on a
+preflight failure. They also exercise cancellation after preparation and callbacks
+through the production parser. Assertions run after the final teardown/drain.

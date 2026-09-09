@@ -387,6 +387,27 @@ void connection::send(stompconn::send frame, stomplay::fun_type fn)
     send(std::move(frame));
 }
 
+prepared_frame connection::prepare(stompconn::send frame)
+{
+    if (session().empty())
+        throw std::logic_error("prepare requires a connected session");
+    auto id = stomplay_.receipt_.reserve();
+    frame.push(header::receipt(id));
+    return prepared_frame(frame.data(), std::move(id), this, connection_seq_id_);
+}
+
+void connection::send(prepared_frame frame, stomplay::fun_type fn)
+{
+    if (frame.owner_ != this || frame.generation_ != connection_seq_id_ ||
+        session().empty() || frame.receipt_id_.empty() || !fn)
+        throw std::logic_error("invalid prepared SEND or session");
+    stomplay_.receipt_.insert(std::move(frame.receipt_id_), std::move(fn));
+    setup_write_timeout(write_timeout_);
+    const auto bytes = frame.size();
+    bev_.write(std::move(frame.data_));
+    bytes_writed_ += bytes;
+}
+
 void connection::send(stompconn::send_temp frame, stomplay::fun_type fn)
 {
     assert(fn);

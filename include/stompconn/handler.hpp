@@ -11,11 +11,15 @@ namespace stompconn {
 
 class receipt_handler
 {
+    friend class connection;
     using fn_type = std::function<void(packet)>;
     using storage_type = std::unordered_map<std::string, fn_type>;
 
     std::size_t receipt_seq_id_{};
     storage_type receipt_{};
+
+    std::string reserve();
+    std::string_view insert(std::string id, fn_type fn);
 
 public:
     receipt_handler() = default;

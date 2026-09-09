@@ -9,6 +9,35 @@ namespace stompconn {
 
 class packet;
 class subscription_handler;
+class connection;
+
+// Final wire bytes and a reserved ID; no receipt callback is registered yet.
+class prepared_frame final
+{
+    friend class connection;
+    buffer data_;
+    std::string receipt_id_;
+    const connection* owner_;
+    std::size_t generation_;
+
+    prepared_frame(buffer data, std::string id,
+        const connection* owner, std::size_t generation)
+        : data_(std::move(data))
+        , receipt_id_(std::move(id))
+        , owner_(owner)
+        , generation_(generation)
+    {}
+
+
+public:
+    prepared_frame(prepared_frame&&) = default;
+    prepared_frame& operator=(prepared_frame&&) = default;
+
+    std::size_t size() const noexcept
+    {
+        return data_.size();
+    }
+};
 
 class frame
 {
