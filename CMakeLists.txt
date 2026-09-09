@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(stompconn VERSION 1.6.7 LANGUAGES CXX)
+project(stompconn VERSION 1.7.0 LANGUAGES CXX)
 
 option(STOMPCONN_DEBUG "show debug" OFF)
 option(STOMPCONN_WITH_STATIC_LIBEVENT "build with static libevent" OFF)
