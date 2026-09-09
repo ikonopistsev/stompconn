@@ -24,12 +24,11 @@ int main()
 	for (unsigned int order = 0; order < 3; ++order) {
 		stompconn::receipt_handler handler;
 		std::vector<std::string> ids;
-		std::vector<bool> seen(10000);
+		std::vector<unsigned int> seen(10000);
 		const auto begin = std::chrono::steady_clock::now();
 		for (std::size_t i = 0; i < seen.size(); ++i) {
 			ids.emplace_back(handler.create([&, i](stompconn::packet) {
-				require(!seen[i]);
-				seen[i] = true;
+				++seen[i];
 			}));
 		}
 		if (order == 1) std::reverse(ids.begin(), ids.end());
@@ -41,8 +40,8 @@ int main()
 			require(handler.call(id, packet()));
 			require(!handler.call(id, packet()));
 		}
-		require(std::all_of(seen.begin(), seen.end(), [](bool value) {
-			return value;
+		require(std::all_of(seen.begin(), seen.end(), [](unsigned int value) {
+			return value == 1;
 		}));
 		require(!handler.call("unknown", packet()));
 		std::cout << "10000 receipts order=" << order << " us="
@@ -54,14 +53,15 @@ int main()
 	auto handler = std::make_unique<stompconn::receipt_handler>();
 	std::string id;
 	bool called = false;
+	bool recursive_call = true;
 	id = handler->create([&](stompconn::packet) {
 		called = true;
-		require(!handler->call(id, packet()));
+		recursive_call = handler->call(id, packet());
 		handler->clear();
 		handler->create([](stompconn::packet) {
 		});
 		handler.reset();
 	});
 	require(handler->call(id, packet()));
-	require(called && !handler);
+	require(called && !recursive_call && !handler);
 }
